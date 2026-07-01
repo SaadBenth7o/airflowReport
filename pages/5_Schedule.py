@@ -2,21 +2,11 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import schedule_pie, schedule_hour_bar
+from utils.theme import apply_theme, section_title
 
 st.set_page_config(page_title="Schedule · Airflow", page_icon=None, layout="wide")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 1.2rem !important; }
-[data-testid="stSidebar"] { background:#FFFFFF !important; border-right:1px solid #E9E8E8; }
-.section-title {
-    font-size:0.95rem; font-weight:700; color:#151213;
-    border-left:4px solid #F0481C; padding-left:10px; margin:4px 0 14px 0;
-}
-</style>
-""", unsafe_allow_html=True)
+apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
@@ -26,14 +16,14 @@ st.caption("Visualisation des planifications cron de tous les DAGs actifs.")
 
 col_l, col_r = st.columns([1, 1.2], gap="medium")
 with col_l:
-    st.markdown('<div class="section-title">Repartition des frequences</div>', unsafe_allow_html=True)
+    section_title(st, "Repartition des frequences")
     st.plotly_chart(schedule_pie(df), use_container_width=True)
 with col_r:
-    st.markdown('<div class="section-title">DAGs par heure de demarrage</div>', unsafe_allow_html=True)
+    section_title(st, "DAGs par heure de demarrage")
     st.plotly_chart(schedule_hour_bar(df), use_container_width=True)
 
 st.markdown("---")
-st.markdown('<div class="section-title">Detail des planifications par DAG</div>', unsafe_allow_html=True)
+section_title(st, "Detail des planifications par DAG")
 
 dag_sched = dag_summary[["DAG_ID", "Schedule_Cron", "Schedule_Category", "Total_Tasks", "Success_Rate"]].copy()
 
@@ -103,13 +93,13 @@ st.dataframe(
     use_container_width=True,
     height=min(620, 38 * len(dag_sched_display) + 40),
     column_config={
-        "DAG":         st.column_config.TextColumn("DAG", width="large"),
-        "Frequence":   st.column_config.TextColumn("Frequence", width="small"),
-        "Cron":        st.column_config.TextColumn("Expression Cron", width="medium"),
+        "DAG":           st.column_config.TextColumn("DAG", width="large"),
+        "Frequence":     st.column_config.TextColumn("Frequence", width="small"),
+        "Cron":          st.column_config.TextColumn("Expression Cron", width="medium"),
         "Planification": st.column_config.TextColumn("Planification lisible", width="large"),
-        "Tasks":       st.column_config.NumberColumn("Tasks", format="%d", width="small"),
-        "Succes %":    st.column_config.ProgressColumn("Succes %", min_value=0, max_value=100,
-                                                        format="%.1f%%", width="medium"),
+        "Tasks":         st.column_config.NumberColumn("Tasks", format="%d", width="small"),
+        "Succes %":      st.column_config.ProgressColumn("Succes %", min_value=0, max_value=100,
+                                                          format="%.1f%%", width="medium"),
     },
     hide_index=True,
 )

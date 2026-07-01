@@ -2,27 +2,11 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import rows_bar, rows_treemap
+from utils.theme import apply_theme, kpi_card, section_title
 
 st.set_page_config(page_title="Data Volume · Airflow", page_icon=None, layout="wide")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 1.2rem !important; }
-[data-testid="stSidebar"] { background:#FFFFFF !important; border-right:1px solid #E9E8E8; }
-.section-title {
-    font-size:0.95rem; font-weight:700; color:#151213;
-    border-left:4px solid #05AEEF; padding-left:10px; margin:4px 0 14px 0;
-}
-.kpi-mini {
-    background:#FFF; border:1px solid #E9E8E8; border-radius:10px;
-    padding:14px 18px; text-align:center;
-}
-.kpi-mini .val { font-size:1.9rem; font-weight:700; }
-.kpi-mini .lbl { font-size:0.70rem; color:#4E4B4C; text-transform:uppercase; letter-spacing:0.06em; }
-</style>
-""", unsafe_allow_html=True)
+apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
@@ -45,21 +29,15 @@ def fmt(n):
 
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#05AEEF;">{fmt(total_rows)}</div>
-    <div class="lbl">Total lignes traitees</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Total lignes traitees", fmt(total_rows), color="#05AEEF")
 with c2:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#151213;">{tasks_with_rows}</div>
-    <div class="lbl">Taches avec donnees</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Taches avec donnees", tasks_with_rows, color="#151213")
 with c3:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#F0481C;">{fmt(top_task['Rows_Affected_Total'])}</div>
-    <div class="lbl">Tache max · {top_task['Task_ID'][:18]}</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Tache max", fmt(top_task["Rows_Affected_Total"]),
+             sub=top_task["Task_ID"][:20], color="#F0481C")
 with c4:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#22C55E;">{fmt(top_dag_rows['Total_Rows'])}</div>
-    <div class="lbl">DAG max · {top_dag_rows['DAG_ID'][:18]}</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "DAG max", fmt(top_dag_rows["Total_Rows"]),
+             sub=top_dag_rows["DAG_ID"][:20], color="#22C55E")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -67,14 +45,14 @@ top_n = st.slider("Nombre de taches a afficher", min_value=5, max_value=40, valu
 
 col_l, col_r = st.columns([1.4, 1], gap="medium")
 with col_l:
-    st.markdown('<div class="section-title">Top taches par volume</div>', unsafe_allow_html=True)
+    section_title(st, "Top taches par volume", color="#05AEEF")
     st.plotly_chart(rows_bar(df, top_n=top_n), use_container_width=True)
 with col_r:
-    st.markdown('<div class="section-title">Repartition par DAG</div>', unsafe_allow_html=True)
+    section_title(st, "Repartition par DAG", color="#05AEEF")
     st.plotly_chart(rows_treemap(dag_summary), use_container_width=True)
 
 st.markdown("---")
-st.markdown('<div class="section-title">Toutes les taches avec donnees (lignes > 0)</div>', unsafe_allow_html=True)
+section_title(st, "Toutes les taches avec donnees (lignes > 0)", color="#05AEEF")
 
 has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
 has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
@@ -99,12 +77,12 @@ st.dataframe(
     use_container_width=True,
     height=min(580, 38 * len(display) + 40),
     column_config={
-        "DAG":            st.column_config.TextColumn("DAG", width="medium"),
-        "Tache":          st.column_config.TextColumn("Tache", width="medium"),
-        "Script":         st.column_config.TextColumn("Script", width="medium"),
-        "Lignes traitees":st.column_config.TextColumn("Lignes traitees", width="small"),
-        "Etat":           st.column_config.TextColumn("Etat", width="small"),
-        "Dernier run":    st.column_config.TextColumn("Dernier run", width="small"),
+        "DAG":             st.column_config.TextColumn("DAG", width="medium"),
+        "Tache":           st.column_config.TextColumn("Tache", width="medium"),
+        "Script":          st.column_config.TextColumn("Script", width="medium"),
+        "Lignes traitees": st.column_config.TextColumn("Lignes traitees", width="small"),
+        "Etat":            st.column_config.TextColumn("Etat", width="small"),
+        "Dernier run":     st.column_config.TextColumn("Dernier run", width="small"),
     },
     hide_index=True,
 )

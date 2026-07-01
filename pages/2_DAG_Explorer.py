@@ -2,19 +2,14 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import dag_task_composition, success_rate_gauge
+from utils.theme import apply_theme, section_title
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon=None, layout="wide")
 
+apply_theme(st)
+
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 1.2rem !important; }
-[data-testid="stSidebar"] { background:#FFFFFF !important; border-right:1px solid #E9E8E8; }
-.section-title {
-    font-size:0.95rem; font-weight:700; color:#151213;
-    border-left:4px solid #05AEEF; padding-left:10px; margin:4px 0 14px 0;
-}
 .dag-header {
     background:linear-gradient(135deg,#FFFFFF,#F5F8FC);
     border:1px solid #E9E8E8; border-radius:12px;
@@ -55,7 +50,7 @@ elif health_filter == "Degrade":
 ascending    = sort_by not in ["failed", "Total_Rows"]
 summary_view = summary_view.sort_values(sort_by, ascending=ascending)
 
-st.markdown('<div class="section-title">Tableau recapitulatif — tous les DAGs</div>', unsafe_allow_html=True)
+section_title(st, "Tableau recapitulatif — tous les DAGs", color="#05AEEF")
 st.caption(f"{len(summary_view)} DAG(s) affiches sur {len(dag_summary)}")
 
 
@@ -108,7 +103,7 @@ st.dataframe(
 )
 
 st.markdown("---")
-st.markdown('<div class="section-title">Drilldown — detail d\'un DAG</div>', unsafe_allow_html=True)
+section_title(st, "Drilldown — detail d'un DAG", color="#05AEEF")
 
 selected_dag = st.selectbox(
     "Choisir un DAG a explorer",

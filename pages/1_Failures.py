@@ -3,27 +3,11 @@ import pandas as pd
 from datetime import datetime
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import failures_timeline
+from utils.theme import apply_theme, kpi_card, section_title
 
 st.set_page_config(page_title="Failures · Airflow", page_icon=None, layout="wide")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 1.2rem !important; }
-[data-testid="stSidebar"] { background:#FFFFFF !important; border-right:1px solid #E9E8E8; }
-.section-title {
-    font-size:0.95rem; font-weight:700; color:#151213;
-    border-left:4px solid #EF4444; padding-left:10px; margin:4px 0 14px 0;
-}
-.kpi-mini {
-    background:#FFF; border:1px solid #E9E8E8; border-radius:10px;
-    padding:14px 18px; text-align:center;
-}
-.kpi-mini .val { font-size:1.9rem; font-weight:700; }
-.kpi-mini .lbl { font-size:0.70rem; color:#4E4B4C; text-transform:uppercase; letter-spacing:0.06em; }
-</style>
-""", unsafe_allow_html=True)
+apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
@@ -40,28 +24,20 @@ old_fails     = failed_df[failed_df["Task_Last_Run_Date"] < recent_cutoff]
 
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#EF4444;">{len(failed_df)}</div>
-    <div class="lbl">Taches en echec</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Taches en echec", len(failed_df), color="#EF4444")
 with c2:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#F0481C;">{len(upstream_df)}</div>
-    <div class="lbl">Upstream failed</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Upstream failed", len(upstream_df), color="#F0481C")
 with c3:
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#EF4444;">{len(recent_fails)}</div>
-    <div class="lbl">Echecs recents (7j)</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "Echecs recents (7j)", len(recent_fails), color="#EF4444")
 with c4:
     n_dags_ko = int(dag_summary["Has_Failure"].sum())
-    st.markdown(f"""<div class="kpi-mini">
-    <div class="val" style="color:#F59E0B;">{n_dags_ko}</div>
-    <div class="lbl">DAGs impactes</div></div>""", unsafe_allow_html=True)
+    kpi_card(st, "DAGs impactes", n_dags_ko, color="#F59E0B")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 all_bad = df[df["Task_State"].isin(["failed", "upstream_failed"])].dropna(subset=["Task_Last_Run_Date"])
 if not all_bad.empty:
-    st.markdown('<div class="section-title">Timeline des echecs</div>', unsafe_allow_html=True)
+    section_title(st, "Timeline des echecs", color="#EF4444")
     st.plotly_chart(failures_timeline(df), use_container_width=True)
 
 tab1, tab2 = st.tabs(["Taches en echec (failed)", "Upstream failed"])
