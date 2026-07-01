@@ -1,0 +1,177 @@
+import pandas as pd
+import xlrd
+import streamlit as st
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent
+XLS_PATH = BASE_DIR / "airflowhistory" / "airflow_tasks_2026_stats_V2.xls"
+
+# CIH Bank brand palette
+CIH_ORANGE = "#F0481C"
+CIH_BLUE   = "#05AEEF"
+CIH_TEXT   = "#151213"
+CIH_TEXT2  = "#4E4B4C"
+CIH_BORDER = "#E9E8E8"
+CIH_BG     = "#F5F8FC"
+
+STATE_COLORS = {
+    "success":         "#22C55E",
+    "failed":          "#EF4444",
+    "skipped":         "#F59E0B",
+    "upstream_failed": "#F0481C",
+    "running":         "#05AEEF",
+    "unknown":         "#9CA3AF",
+}
+
+STATE_FR = {
+    "success":         "Succès",
+    "failed":          "Échec",
+    "skipped":         "Ignorée",
+    "upstream_failed": "Échec amont",
+    "running":         "En cours",
+    "unknown":         "Inconnu",
+}
+
+STATE_BG = {
+    "success":         "#F0FDF4",
+    "failed":          "#FEF2F2",
+    "skipped":         "#FFFBEB",
+    "upstream_failed": "#FFF5F0",
+    "running":         "#F0F9FF",
+    "unknown":         "#F9FAFB",
+}
+
+
+def _parse_date(val):
+    if isinstance(val, float) and val > 1000:
+        try:
+            return xlrd.xldate_as_datetime(val, 0)
+        except Exception:
+            return pd.NaT
+    if isinstance(val, str) and val not in ("Never Run", "N/A", ""):
+        try:
+            return pd.to_datetime(val)
+        except Exception:
+            return pd.NaT
+    return pd.NaT
+
+
+def _parse_duration_seconds(val):
+    if isinstance(val, float) and val > 0:
+        return val * 24 * 3600
+    if isinstance(val, str) and ":" in val:
+        try:
+            parts = val.split(":")
+            h, m, s = int(parts[0]), int(parts[1]), float(parts[2])
+            return h * 3600 + m * 60 + s
+        except Exception:
+            return 0.0
+    return 0.0
+
+
+def _format_duration(seconds):
+    if seconds <= 0:
+        return "—"
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    if h > 0:
+        return f"{h:02d}h {m:02d}m {s:02d}s"
+    if m > 0:
+        return f"{m:02d}m {s:02d}s"
+    return f"{s:02d}s"
+
+
+def _fmt_rows(n):
+    if n >= 1_000_000_000:
+        return f"{n / 1_000_000_000:.1f}B"
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K"
+    return str(int(n))
+
+
+def _categorize_schedule(sched):
+    s = str(sched).strip()
+    if s in ("None", "nan", ""):
+        return "Manuel"
+    if "1 day" in s:
+        return "Journalier"
+    parts = s.split()
+    if len(parts) != 5:
+        return "Personnalisé"
+    mins, hour, dom, month, dow = parts
+    if "/" in mins or "," in mins or "*" in mins:
+        return "Intra-journalier"
+    if "/" in hour or "," in hour:
+        return "Intra-journalier"
+    if month != "*" and dom != "*":
+        return "Annuel / Ponctuel"
+    if dom != "*" and month == "*":
+        return "Mensuel"
+    if dow != "*":
+        return "Hebdomadaire"
+    return "Journalier"
+
+
+@st.cache_data
+def load_data(path=str(XLS_PATH)):
+    wb = xlrd.open_workbook(path)
+    ws = wb.sheet_by_index(0)
+    headers = ws.row_values(0)
+    raw = [dict(zip(headers, ws.row_values(i))) for i in range(1, ws.nrows)]
+    df = pd.DataFrame(raw)
+
+    df["Task_Last_Run_Date"] = df["Task_Last_Run_Date"].apply(_parse_date)
+    df["Duration_Seconds"]   = df["Task_Duration"].apply(_parse_duration_seconds)
+    df["Duration_Minutes"]   = df["Duration_Seconds"] / 60
+    df["Duration_Display"]   = df["Duration_Seconds"].apply(_format_duration)
+    df["Rows_Affected_Total"] = (
+        pd.to_numeric(df["Rows_Affected_Total"], errors="coerce").fillna(0).astype(int)
+    )
+    df["State_Color"]        = df["Task_State"].map(STATE_COLORS).fillna("#9CA3AF")
+    df["State_BG"]           = df["Task_State"].map(STATE_BG).fillna("#F9FAFB")
+    df["State_FR"]           = df["Task_State"].map(STATE_FR).fillna(df["Task_State"])
+    df["Schedule_Category"]  = df["Schedule_Cron"].apply(_categorize_schedule)
+    df["Rows_Display"]       = df["Rows_Affected_Total"].apply(_fmt_rows)
+
+    return df
+
+
+@st.cache_data
+def build_dag_summary(path=str(XLS_PATH)):
+    df = load_data(path)
+
+    counts = (
+        df.groupby(["DAG_ID", "Task_State"])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(columns=["success", "failed", "skipped", "upstream_failed", "running", "unknown"], fill_value=0)
+    )
+    counts.columns.name = None
+
+    agg = df.groupby("DAG_ID").agg(
+        Total_Tasks      = ("Task_ID", "count"),
+        Total_Rows       = ("Rows_Affected_Total", "sum"),
+        Last_Run         = ("Task_Last_Run_Date", "max"),
+        Avg_Duration_Min = ("Duration_Minutes", "mean"),
+        Schedule_Cron    = ("Schedule_Cron", "first"),
+        Schedule_Category= ("Schedule_Category", "first"),
+        Owner            = ("Owner", "first"),
+    )
+
+    summary = agg.join(counts).fillna(0)
+    for col in ["success", "failed", "skipped", "upstream_failed", "running"]:
+        if col not in summary.columns:
+            summary[col] = 0
+        summary[col] = summary[col].astype(int)
+
+    summary["Success_Rate"] = (summary["success"] / summary["Total_Tasks"] * 100).round(1)
+    summary["Has_Failure"]  = (summary["failed"] + summary["upstream_failed"]) > 0
+
+    return summary.reset_index()
+
+
+def fmt_rows(n):
+    return _fmt_rows(n)

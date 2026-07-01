@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.xls
+*.xlsx
+*.csv
+airflowhistory/
+.env
+*.log
