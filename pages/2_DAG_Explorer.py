@@ -111,7 +111,7 @@ with col_detail:
             calendar_icon = svg_icon("calendar", 14, "#9AA0A8")
             st.markdown(
                 f'<div style="display:flex;gap:16px;margin-top:8px;margin-right:4px;'
-                f'flex-wrap:wrap;max-width:100%;font-size:12.5px;color:#4E4B4C;">'
+                f'margin-bottom:10px;flex-wrap:wrap;max-width:100%;font-size:12.5px;color:#4E4B4C;">'
                 f'<span style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
                 f'{owner_icon}{dag_row["Owner"]}</span>'
                 f'<span style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
