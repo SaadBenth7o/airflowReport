@@ -2,9 +2,18 @@ import pandas as pd
 import xlrd
 import streamlit as st
 from pathlib import Path
+from datetime import datetime
 
 BASE_DIR = Path(__file__).parent.parent
 XLS_PATH = BASE_DIR / "airflowhistory" / "airflow_tasks_2026_stats_V2.xls"
+
+# Colonnes que le dashboard exploite reellement — un nouvel export doit au
+# minimum les contenir (memes noms, ordre libre) pour etre accepte.
+REQUIRED_COLUMNS = [
+    "DAG_ID", "Task_ID", "Operator_Type", "Bash_Script_Name",
+    "Schedule_Cron", "Task_State", "Task_Last_Run_Date",
+    "Task_Duration", "Rows_Affected_Total", "Owner",
+]
 
 # CIH Bank brand palette
 CIH_ORANGE = "#F0481C"
@@ -175,3 +184,68 @@ def build_dag_summary(path=str(XLS_PATH)):
 
 def fmt_rows(n):
     return _fmt_rows(n)
+
+
+def _validate_upload_bytes(file_bytes):
+    """Verifie que le classeur uploade contient bien les colonnes attendues
+    (memes metadonnees de table que le fichier en place). Retourne
+    (ok, headers, message)."""
+    try:
+        wb = xlrd.open_workbook(file_contents=file_bytes)
+        ws = wb.sheet_by_index(0)
+        headers = [str(h).strip() for h in ws.row_values(0)]
+    except Exception as exc:
+        return False, [], f"Fichier illisible ({exc})."
+
+    missing = [c for c in REQUIRED_COLUMNS if c not in headers]
+    if missing:
+        return False, headers, "Colonnes manquantes : " + ", ".join(missing)
+
+    return True, headers, f"{ws.nrows - 1} ligne(s) detectee(s), structure conforme."
+
+
+def save_uploaded_file(uploaded_file):
+    """Valide puis remplace le fichier XLS source par le fichier uploade.
+    Vide le cache Streamlit pour forcer le rechargement des donnees.
+    Retourne (ok, message)."""
+    file_bytes = uploaded_file.getvalue()
+    ok, _headers, message = _validate_upload_bytes(file_bytes)
+    if not ok:
+        return False, message
+
+    XLS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(XLS_PATH, "wb") as f:
+        f.write(file_bytes)
+
+    load_data.clear()
+    build_dag_summary.clear()
+    return True, f"Nouveau fichier applique — {message}"
+
+
+def render_data_uploader(st):
+    """Widget sidebar : depot d'un nouvel export XLS pour rafraichir le
+    dashboard sans toucher au systeme de fichiers manuellement. Le fichier
+    est rejete s'il ne contient pas les memes colonnes que l'export actuel."""
+    st.sidebar.markdown('<div class="cih-nav-section-label">Donnees</div>', unsafe_allow_html=True)
+    uploaded = st.sidebar.file_uploader(
+        "Mettre a jour les donnees",
+        type=["xls"],
+        key="xls_uploader",
+        help="Deposez le dernier export Airflow (.xls) — memes colonnes que le fichier actuel.",
+    )
+    if uploaded is not None:
+        sig = (uploaded.name, uploaded.size)
+        if st.session_state.get("_xls_upload_sig") != sig:
+            st.session_state["_xls_upload_sig"] = sig
+            ok, message = save_uploaded_file(uploaded)
+            if ok:
+                st.toast(message)
+                st.rerun()
+            else:
+                st.sidebar.error(message)
+
+    if XLS_PATH.exists():
+        mtime = datetime.fromtimestamp(XLS_PATH.stat().st_mtime)
+        st.sidebar.caption(f"Source : {XLS_PATH.name}  ·  maj {mtime.strftime('%d/%m %H:%M')}")
+    else:
+        st.sidebar.caption("Aucun fichier de donnees charge.")

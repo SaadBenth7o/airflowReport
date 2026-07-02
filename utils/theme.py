@@ -3,6 +3,8 @@ Charte visuelle CIH Bank — refonte UI complète du dashboard Airflow (V2).
 Icônes Lucide-style (SVG inline, identiques au mockup React validé).
 """
 
+from utils.data_loader import render_data_uploader
+
 # ── Palette ──────────────────────────────────────────────────────────────
 CIH = {
     "orange":      "#F0481C",
@@ -188,6 +190,8 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
         """,
         unsafe_allow_html=True,
     )
+
+    render_data_uploader(st)
 
 
 def section_title(st, txt, color=None, right=""):
@@ -519,6 +523,16 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     border-color: {CIH['border']} !important;
     background: {CIH['surface']} !important;
 }}
+
+/* ── file uploader (mise a jour des donnees) ── */
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
+    border-radius: 12px; background: {CIH['bg']}; border: 1px dashed {CIH['border']};
+}}
+[data-testid="stSidebar"] .stFileUploader {{ padding: 0 12px; margin-bottom: 4px; }}
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] span {{
+    font-size: 12px; color: {CIH['ink2']};
+}}
+[data-testid="stSidebar"] .stCaption {{ padding: 0 12px; }}
 
 /* ── scrollbar ── */
 ::-webkit-scrollbar {{ width:10px; height:10px; }}
