@@ -49,7 +49,14 @@ if sched_filter != "Tous":
 ascending = sort_by in ("DAG_ID", "Success_Rate")
 list_view = list_view.sort_values(sort_by, ascending=ascending)
 
-if "dag_explorer_sel" not in st.session_state or \
+# Arrivee depuis un lien "voir le detail" (ex: alertes de la Vue
+# d'ensemble) : le DAG cible est passe en parametre d'URL et prend
+# priorite sur la selection precedente.
+qp_dag = st.query_params.get("dag")
+if qp_dag and qp_dag in dag_summary["DAG_ID"].values:
+    st.session_state["dag_explorer_sel"] = qp_dag
+    del st.query_params["dag"]
+elif "dag_explorer_sel" not in st.session_state or \
         st.session_state["dag_explorer_sel"] not in dag_summary["DAG_ID"].values:
     st.session_state["dag_explorer_sel"] = (
         list_view.iloc[0]["DAG_ID"] if len(list_view) else dag_summary.iloc[0]["DAG_ID"]

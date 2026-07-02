@@ -93,6 +93,10 @@ def dag_failures_bar(dag_summary, top_n=10):
     )
     fig.update_coloraxes(showscale=False)
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{x} échec(s)<br>Taux de succès : %{customdata[2]:.1f}%<extra></extra>")
+    # Le DAG le plus en echec (1ere ligne, deja triee par nlargest) doit
+    # apparaitre EN HAUT du graphique — sans ce reversed, Plotly place les
+    # barres horizontales de bas en haut par defaut (ordre inverse).
+    fig.update_yaxes(autorange="reversed")
     return _round_bars(_apply(fig, 340))
 
 
