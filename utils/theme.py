@@ -322,9 +322,19 @@ html, body, [class*="css"], .stApp {{
     100% {{ box-shadow: 0 0 0 0 rgba(34,197,94,0); }}
 }}
 
-/* Cache le chrome Streamlit + la nav multipage par defaut (remplacee par cih-navlist) */
-#MainMenu, footer, header[data-testid="stHeader"] {{ visibility:hidden; height:0; overflow:hidden; }}
+/* Cache le chrome Streamlit + la nav multipage par defaut (remplacee par cih-navlist).
+   Le header n'est PAS masque entierement : c'est lui qui porte le bouton de
+   reouverture de la sidebar quand elle est repliee — le masquer casse ce
+   bouton. On ne cache que le menu hamburger / bouton Deploy / footer. */
+#MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {{
+    visibility:hidden; height:0;
+}}
+header[data-testid="stHeader"] {{ background:transparent; box-shadow:none; }}
 [data-testid="stSidebarNav"] {{ display:none; }}
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"] {{
+    visibility: visible !important; display: flex !important; opacity: 1 !important;
+}}
 
 /* ── titres ── */
 h1 {{ font-weight:800; letter-spacing:-.02em; color:{CIH['ink']}; }}
@@ -343,7 +353,7 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     padding: 20px 20px 16px;
     border-bottom: 1px solid {CIH['border']};
 }}
-.cih-brand-logo-img {{ height: 30px; width: auto; display: block; }}
+.cih-brand-logo-img {{ width: 100%; max-width: 100%; height: auto; display: block; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};
