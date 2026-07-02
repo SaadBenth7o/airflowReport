@@ -277,6 +277,31 @@ def status_pill(state):
     )
 
 
+# Couleur du texte d'etat dans les tableaux — deux variantes selon que la
+# colonne contient le code brut (Task_State) ou le libelle FR deja mappe.
+STATE_RAW_COLOR = {
+    "success": CIH["green"], "failed": CIH["red"], "skipped": CIH["amber"],
+    "upstream_failed": CIH["orange"], "running": CIH["blue"],
+}
+STATE_FR_COLOR = {
+    "Succes": CIH["green"], "Echec": CIH["red"], "Ignoree": CIH["amber"],
+    "Upstream": CIH["orange"], "Echec amont": CIH["orange"], "En cours": CIH["blue"],
+}
+
+
+def styled_column(df, column, color_map):
+    """
+    Retourne un pandas Styler colorant le texte de `column` selon
+    color_map (valeur exacte -> couleur hex). A passer directement a
+    st.dataframe(...) a la place du DataFrame brut (compatible avec
+    column_config).
+    """
+    def _color(val):
+        c = color_map.get(val)
+        return f"color:{c};font-weight:700;" if c else ""
+    return df.style.map(_color, subset=[column])
+
+
 def donut_legend(st, segments):
     """
     Legende a cote d'un donut chart : point colore + libelle + valeur + %.
@@ -317,7 +342,7 @@ html, body, [class*="css"], .stApp {{
 }}
 .stApp {{ background: {CIH['bg']}; }}
 .block-container {{
-    padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1360px;
+    padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1680px;
     animation: cih-fade .28s cubic-bezier(.2,.7,.2,1);
 }}
 
@@ -388,15 +413,21 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     padding: 14px 20px 8px;
 }}
 .cih-navlist {{ display:flex; flex-direction:column; gap:2px; padding: 0 10px; }}
-.cih-navlink {{
+/* Specificite + !important : le CSS par defaut de Streamlit applique une
+   couleur bleue et un soulignement aux <a> dans le markdown, avec une
+   specificite plus forte que .cih-navlink seul. */
+[data-testid="stSidebar"] a.cih-navlink,
+[data-testid="stSidebar"] a.cih-navlink:visited {{
     position: relative; display:flex; align-items:center; gap:11px;
     padding:10px 12px; border-radius:10px;
-    text-decoration:none; font-size:13.5px; font-weight:500;
-    color:{CIH['ink2']}; transition: background .12s, color .12s;
+    text-decoration:none !important; font-size:13.5px; font-weight:500;
+    color:{CIH['ink2']} !important; transition: background .12s, color .12s;
 }}
-.cih-navlink:hover {{ background:{CIH['bg']}; }}
-.cih-navlink.active {{
-    background:{CIH['orange_soft']}; color:{CIH['orange']}; font-weight:700;
+[data-testid="stSidebar"] a.cih-navlink:hover {{
+    background:{CIH['bg']}; text-decoration:none !important;
+}}
+[data-testid="stSidebar"] a.cih-navlink.active {{
+    background:{CIH['orange_soft']}; color:{CIH['orange']} !important; font-weight:700;
 }}
 .cih-navlink.active::before {{
     content:''; position:absolute; left:0; top:8px; bottom:8px;

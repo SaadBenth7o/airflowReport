@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import dag_task_composition, success_rate_gauge
-from utils.theme import apply_theme, section_title, sidebar_shell, page_header, svg_icon
+from utils.theme import (
+    apply_theme, section_title, sidebar_shell, page_header, svg_icon,
+    styled_column, STATE_RAW_COLOR,
+)
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
@@ -107,11 +110,15 @@ with col_detail:
             owner_icon    = svg_icon("user", 14, "#9AA0A8")
             calendar_icon = svg_icon("calendar", 14, "#9AA0A8")
             st.markdown(
-                f'<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:12.5px;color:#4E4B4C;">'
-                f'<span style="display:flex;align-items:center;gap:6px;">{owner_icon}{dag_row["Owner"]}</span>'
-                f'<span style="display:flex;align-items:center;gap:6px;">{calendar_icon}{dag_row["Schedule_Category"]}</span>'
+                f'<div style="display:flex;gap:16px;margin-top:8px;margin-right:4px;'
+                f'flex-wrap:wrap;max-width:100%;font-size:12.5px;color:#4E4B4C;">'
+                f'<span style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
+                f'{owner_icon}{dag_row["Owner"]}</span>'
+                f'<span style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
+                f'{calendar_icon}{dag_row["Schedule_Category"]}</span>'
                 f'<span style="font-family:ui-monospace,Menlo,monospace;background:#F5F8FC;'
-                f'border:1px solid #E9E8E8;border-radius:6px;padding:2px 8px;color:#151213;">'
+                f'border:1px solid #E9E8E8;border-radius:6px;padding:2px 8px;color:#151213;'
+                f'white-space:nowrap;">'
                 f'{dag_row["Schedule_Cron"]}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -152,13 +159,12 @@ with col_detail:
         )
         task_display.columns = ["Tache", "Operateur", "Script", "Etat", "Dernier run", "Duree", "Lignes"]
         st.dataframe(
-            task_display, use_container_width=True,
+            styled_column(task_display, "Etat", STATE_RAW_COLOR), use_container_width=True,
             height=min(500, 38 * len(task_display) + 40),
             column_config={
                 "Tache":       st.column_config.TextColumn("Tache", width="medium"),
                 "Operateur":   st.column_config.TextColumn("Operateur", width="small"),
                 "Script":      st.column_config.TextColumn("Script", width="medium"),
-                "Etat":        st.column_config.TextColumn("Etat", width="small"),
                 "Dernier run": st.column_config.TextColumn("Dernier run", width="small"),
                 "Duree":       st.column_config.TextColumn("Duree", width="small"),
                 "Lignes":      st.column_config.TextColumn("Lignes", width="small"),

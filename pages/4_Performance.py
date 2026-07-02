@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_operator
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
+from utils.theme import (
+    apply_theme, kpi_card, section_title, sidebar_shell, page_header,
+    styled_column, STATE_RAW_COLOR,
+)
 
 st.set_page_config(page_title="Performance · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
@@ -87,13 +90,12 @@ with st.container(border=True):
         perf_display["Task_Last_Run_Date"] = perf_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         perf_display.columns = ["DAG", "Tache", "Etat", "Duree", "Min", "Dernier run"]
         st.dataframe(
-            perf_display.drop(columns=["Min"]),
+            styled_column(perf_display.drop(columns=["Min"]), "Etat", STATE_RAW_COLOR),
             use_container_width=True,
             height=min(500, 38 * len(perf_display) + 40),
             column_config={
                 "DAG":         st.column_config.TextColumn("DAG", width="medium"),
                 "Tache":       st.column_config.TextColumn("Tache", width="medium"),
-                "Etat":        st.column_config.TextColumn("Etat", width="small"),
                 "Duree":       st.column_config.TextColumn("Duree", width="small"),
                 "Dernier run": st.column_config.TextColumn("Dernier run", width="small"),
             },

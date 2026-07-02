@@ -31,7 +31,9 @@ st.markdown("""
     padding:12px 14px; border-radius:12px; border-left:3px solid;
     margin-bottom:8px;
 }
-.cih-alert-row:last-child { margin-bottom:0; }
+/* Pas de margin-bottom:0 sur :last-child — le conteneur borde ne laisse
+   pas toujours une marge interne fiable en bas ; garder la marge sur
+   la derniere ligne aussi evite qu'elle touche la bordure de la carte. */
 .cih-alert-icon {
     width:34px; height:34px; flex:none; border-radius:9px;
     background:#FFFFFF; display:flex; align-items:center; justify-content:center;
@@ -206,7 +208,7 @@ section_title(st, "Alertes actives", color="#EF4444")
 if failed_dags.empty and upstream_dags.empty:
     st.success("Aucune alerte — tous les DAGs fonctionnent normalement.")
 else:
-    col_a, col_b = st.columns(2, gap="medium")
+    col_a, col_b = st.columns([2, 1], gap="medium")
     with col_a:
         with st.container(border=True):
             section_title(st, f"{len(failed_dags)} DAG(s) avec des taches en echec", color="#EF4444")

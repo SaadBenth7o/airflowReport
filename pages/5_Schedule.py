@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
-from utils.charts import schedule_pie, schedule_hour_bar, schedule_distribution_segments
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend
+from utils.charts import (
+    schedule_pie, schedule_hour_bar, schedule_distribution_segments, SCHEDULE_COLORS,
+)
+from utils.theme import (
+    apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend,
+    styled_column,
+)
 
 st.set_page_config(page_title="Planification · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
@@ -110,12 +115,14 @@ with st.container(border=True):
         "Total_Tasks": "Tasks", "Success_Rate": "Succes %",
     })
     st.dataframe(
-        dag_sched_display[["DAG", "Frequence", "Cron", "Planification", "Tasks", "Succes %"]],
+        styled_column(
+            dag_sched_display[["DAG", "Frequence", "Cron", "Planification", "Tasks", "Succes %"]],
+            "Frequence", SCHEDULE_COLORS,
+        ),
         use_container_width=True,
         height=min(620, 38 * len(dag_sched_display) + 40),
         column_config={
             "DAG":           st.column_config.TextColumn("DAG", width="large"),
-            "Frequence":     st.column_config.TextColumn("Frequence", width="small"),
             "Cron":          st.column_config.TextColumn("Expression Cron", width="medium"),
             "Planification": st.column_config.TextColumn("Planification lisible", width="large"),
             "Tasks":         st.column_config.NumberColumn("Tasks", format="%d", width="small"),

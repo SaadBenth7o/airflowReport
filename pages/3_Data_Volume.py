@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import rows_bar, rows_treemap
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
+from utils.theme import (
+    apply_theme, kpi_card, section_title, sidebar_shell, page_header,
+    styled_column, STATE_FR_COLOR,
+)
 
 st.set_page_config(page_title="Volume de donnees · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
@@ -80,14 +83,13 @@ with st.container(border=True):
     display.columns = ["DAG", "Tache", "Script", "Lignes traitees", "Etat", "Dernier run"]
 
     st.dataframe(
-        display, use_container_width=True,
+        styled_column(display, "Etat", STATE_FR_COLOR), use_container_width=True,
         height=min(580, 38 * len(display) + 40),
         column_config={
             "DAG":             st.column_config.TextColumn("DAG", width="medium"),
             "Tache":           st.column_config.TextColumn("Tache", width="medium"),
             "Script":          st.column_config.TextColumn("Script", width="medium"),
             "Lignes traitees": st.column_config.TextColumn("Lignes traitees", width="small"),
-            "Etat":            st.column_config.TextColumn("Etat", width="small"),
             "Dernier run":     st.column_config.TextColumn("Dernier run", width="small"),
         },
         hide_index=True,

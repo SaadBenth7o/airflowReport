@@ -174,6 +174,7 @@ def rows_bar(df, top_n=20):
         labels={"Rows_Affected_Total": "Lignes traitées", "Label": ""},
     )
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{y}<br>%{x:,} lignes<extra></extra>")
+    fig.update_yaxes(autorange="reversed")
     return _round_bars(_apply(fig, 480))
 
 
@@ -221,6 +222,7 @@ def slowest_tasks_bar(df, top_n=15):
         labels={"Duration_Minutes": "Durée (min)", "Label": "", "Task_State": "État"},
     )
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>Durée : %{customdata[2]}<extra></extra>")
+    fig.update_yaxes(autorange="reversed")
     return _round_bars(_apply(fig, 480))
 
 
@@ -289,6 +291,6 @@ def schedule_hour_bar(df):
         labels={"Hour": "Heure de démarrage (UTC)", "DAGs": "Nombre de DAGs"},
     )
     fig.update_layout(**_LAYOUT, height=300,
-                      xaxis=dict(tickmode="linear", tick0=0, dtick=1, gridcolor=CIH_BORDER),
+                      xaxis=dict(tickmode="linear", tick0=0, dtick=1, tickangle=0, gridcolor=CIH_BORDER),
                       yaxis=dict(gridcolor=CIH_BORDER))
     return _round_bars(fig, radius=4)
