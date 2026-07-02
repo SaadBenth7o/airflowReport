@@ -323,16 +323,21 @@ html, body, [class*="css"], .stApp {{
 }}
 
 /* Cache le chrome Streamlit + la nav multipage par defaut (remplacee par cih-navlist).
-   Le header n'est PAS masque entierement : c'est lui qui porte le bouton de
-   reouverture de la sidebar quand elle est repliee — le masquer casse ce
-   bouton. On ne cache que le menu hamburger / bouton Deploy / footer. */
-#MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {{
+   IMPORTANT : le bouton qui rouvre la sidebar repliee (data-testid=
+   "stExpandSidebarButton") vit DANS le header, a l'interieur de stToolbar.
+   Masquer stHeader ou stToolbar en entier le supprime aussi — on ne cache
+   donc que les elements precis (menu hamburger, bouton Deploy, indicateur
+   de statut, decoration), jamais leurs conteneurs. */
+#MainMenu, footer,
+[data-testid="stMainMenu"],
+[data-testid="stAppDeployButton"],
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"] {{
     visibility:hidden; height:0;
 }}
 header[data-testid="stHeader"] {{ background:transparent; box-shadow:none; }}
 [data-testid="stSidebarNav"] {{ display:none; }}
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapsedControl"] {{
+[data-testid="stExpandSidebarButton"] {{
     visibility: visible !important; display: flex !important; opacity: 1 !important;
 }}
 
