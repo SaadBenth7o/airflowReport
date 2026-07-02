@@ -3,7 +3,22 @@ Charte visuelle CIH Bank — refonte UI complète du dashboard Airflow (V2).
 Icônes Lucide-style (SVG inline, identiques au mockup React validé).
 """
 
+import base64
+from pathlib import Path
+
 from utils.data_loader import render_data_uploader
+
+_LOGO_PATH = Path(__file__).parent.parent / "assets" / "cih-logo.png"
+
+
+def _load_logo_b64():
+    try:
+        return base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
+    except Exception:
+        return ""
+
+
+_LOGO_B64 = _load_logo_b64()
 
 # ── Palette ──────────────────────────────────────────────────────────────
 CIH = {
@@ -143,13 +158,15 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
     (voir NAV_ITEMS : 'overview' | 'failures' | 'explorer' | 'volume' |
     'performance' | 'schedule').
     """
+    logo_html = (
+        f'<img src="data:image/png;base64,{_LOGO_B64}" alt="CIH Bank" class="cih-brand-logo-img"/>'
+        if _LOGO_B64 else
+        '<div class="cih-brand-logo">CIH</div>'
+    )
     st.sidebar.markdown(
         f"""<div class="cih-brand">
-          <div class="cih-brand-logo">CIH</div>
-          <div>
-            <div class="cih-brand-name">CIH Bank</div>
-            <div class="cih-brand-sub">Data Platform</div>
-          </div>
+          {logo_html}
+          <div class="cih-brand-sub-standalone">Data Platform &middot; Airflow</div>
         </div>""",
         unsafe_allow_html=True,
     )
@@ -322,10 +339,11 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 
 /* ── brand CIH ── */
 .cih-brand {{
-    display: flex; align-items: center; gap: 11px;
-    padding: 18px 20px 16px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 9px;
+    padding: 20px 20px 16px;
     border-bottom: 1px solid {CIH['border']};
 }}
+.cih-brand-logo-img {{ height: 30px; width: auto; display: block; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};
@@ -333,8 +351,9 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     box-shadow: 0 3px 10px rgba(240,72,28,.32);
     color: #fff; font-weight: 800; font-size: 13px; letter-spacing: -.01em;
 }}
-.cih-brand-name {{ font-weight:700; font-size:14.5px; color:{CIH['ink']}; line-height:1.2; }}
-.cih-brand-sub  {{ font-size:11px; color:{CIH['ink2']}; line-height:1.3; }}
+.cih-brand-sub-standalone {{
+    font-size: 11px; font-weight: 600; color: {CIH['ink2']}; letter-spacing: .02em;
+}}
 
 /* ── nav custom (remplace stSidebarNav) ── */
 .cih-nav-section-label {{
