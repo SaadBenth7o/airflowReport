@@ -8,9 +8,17 @@ _LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter, sans-serif", color=CIH_TEXT, size=13),
-    margin=dict(l=10, r=10, t=45, b=10),
+    margin=dict(l=10, r=10, t=20, b=10),
     hoverlabel=dict(bgcolor="white", bordercolor=CIH_BORDER, font_size=13),
 )
+
+_BAR_RADIUS = 7
+
+STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running"]
+STATE_LABELS_FR = {
+    "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
+    "upstream_failed": "Echec amont", "running": "En cours",
+}
 
 
 def _apply(fig, height=360):
@@ -18,32 +26,58 @@ def _apply(fig, height=360):
     return fig
 
 
+def _round_bars(fig, radius=_BAR_RADIUS):
+    try:
+        fig.update_traces(marker_cornerradius=radius, selector=dict(type="bar"))
+    except Exception:
+        pass
+    return fig
+
+
+def _donut(labels, values, colors, center_top, center_bottom, height=260, hole=0.68):
+    """Donut sans texte sur les tranches ni legende native — total au centre.
+    La legende (couleur + libelle + valeur + %) est rendue a part via
+    utils.theme.donut_legend, a cote du graphique."""
+    fig = go.Figure(go.Pie(
+        labels=labels,
+        values=values,
+        hole=hole,
+        marker=dict(colors=colors, line=dict(color="white", width=3)),
+        textinfo="none",
+        hovertemplate="<b>%{label}</b><br>%{value} (%{percent})<extra></extra>",
+        sort=False,
+        showlegend=False,
+    ))
+    fig.add_annotation(
+        text=f"<b style='font-size:26px'>{center_top}</b><br>"
+             f"<span style='font-size:11.5px;color:{CIH_TEXT}99'>{center_bottom}</span>",
+        x=0.5, y=0.5, showarrow=False, font=dict(size=26, color=CIH_TEXT),
+    )
+    layout = {**_LAYOUT, "margin": dict(l=10, r=10, t=10, b=10)}
+    fig.update_layout(**layout, height=height, showlegend=False)
+    return fig
+
+
 # ---------- Overview ----------
 
-def state_donut(df):
-    counts = df["Task_State"].value_counts().reset_index()
-    counts.columns = ["État", "Nombre"]
-    fr_map = {"success": "Succès", "failed": "Échec", "skipped": "Ignorée",
-               "upstream_failed": "Échec amont", "running": "En cours"}
-    counts["Label"] = counts["État"].map(fr_map).fillna(counts["État"])
-    colors = [STATE_COLORS.get(s, "#9CA3AF") for s in counts["État"]]
+def state_distribution_segments(df):
+    """Segments (label, couleur, valeur) pour la legende du donut d'etats."""
+    counts = df["Task_State"].value_counts()
+    return [
+        {"label": STATE_LABELS_FR[s], "color": STATE_COLORS[s], "value": int(counts.get(s, 0))}
+        for s in STATE_ORDER
+    ]
 
-    fig = go.Figure(go.Pie(
-        labels=counts["Label"],
-        values=counts["Nombre"],
-        hole=0.62,
-        marker=dict(colors=colors, line=dict(color="white", width=2)),
-        textinfo="label+percent",
-        hovertemplate="<b>%{label}</b><br>%{value} tâches (%{percent})<extra></extra>",
-        pull=[0.04 if s == "failed" else 0 for s in counts["État"]],
-    ))
-    total = counts["Nombre"].sum()
-    fig.add_annotation(text=f"<b>{total}</b><br><span style='font-size:11px'>tâches</span>",
-                       x=0.5, y=0.5, showarrow=False, font_size=18)
-    fig.update_layout(**_LAYOUT, title="Distribution des états", height=360,
-                      showlegend=True,
-                      legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"))
-    return fig
+
+def state_donut(df):
+    segs = [s for s in state_distribution_segments(df) if s["value"] > 0]
+    total = sum(s["value"] for s in segs)
+    return _donut(
+        labels=[s["label"] for s in segs],
+        values=[s["value"] for s in segs],
+        colors=[s["color"] for s in segs],
+        center_top=total, center_bottom="taches",
+    )
 
 
 def dag_failures_bar(dag_summary, top_n=10):
@@ -56,11 +90,10 @@ def dag_failures_bar(dag_summary, top_n=10):
         color_continuous_scale=[[0, "#FBBF24"], [0.5, "#F97316"], [1, "#EF4444"]],
         hover_data={"DAG_ID": True, "failed": True, "Success_Rate": True},
         labels={"failed": "Tâches en échec", "DAG_Short": ""},
-        title=f"Top {min(top_n, len(df))} DAGs — Tâches en échec",
     )
     fig.update_coloraxes(showscale=False)
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{x} échec(s)<br>Taux de succès : %{customdata[2]:.1f}%<extra></extra>")
-    return _apply(fig, 380)
+    return _round_bars(_apply(fig, 340))
 
 
 # ---------- Failures ----------
@@ -77,11 +110,10 @@ def failures_timeline(df):
         color_discrete_map=STATE_COLORS,
         symbol="Task_State",
         hover_data={"Task_ID": True, "Bash_Script_Name": True, "Task_Last_Run_Date": True},
-        title="Timeline des échecs par DAG",
         labels={"Task_Last_Run_Date": "Date du dernier run", "DAG_ID": ""},
     )
     fig.update_traces(marker_size=13)
-    fig.update_layout(**_LAYOUT, height=max(320, n_dags * 38 + 100),
+    fig.update_layout(**_LAYOUT, height=max(320, n_dags * 38 + 60),
                       legend=dict(title="État", orientation="v"))
     return fig
 
@@ -92,16 +124,14 @@ def dag_task_composition(df, dag_id):
     dag_df = df[df["DAG_ID"] == dag_id]
     counts = dag_df["Task_State"].value_counts().reset_index()
     counts.columns = ["État", "Nombre"]
-    colors = [STATE_COLORS.get(s, "#9CA3AF") for s in counts["État"]]
 
     fig = px.bar(
         counts, x="État", y="Nombre",
         color="État", color_discrete_map=STATE_COLORS,
-        title=f"Composition — {dag_id}",
         labels={"État": "", "Nombre": "Nb tâches"},
     )
-    fig.update_layout(**_LAYOUT, height=280, showlegend=False)
-    return fig
+    fig.update_layout(**_LAYOUT, height=260, showlegend=False)
+    return _round_bars(fig)
 
 
 def success_rate_gauge(rate):
@@ -114,15 +144,16 @@ def success_rate_gauge(rate):
             "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": CIH_TEXT},
             "bar": {"color": color},
             "bgcolor": "white",
+            "shape": "angular",
             "steps": [
                 {"range": [0, 50],  "color": "#FEE2E2"},
                 {"range": [50, 80], "color": "#FEF3C7"},
                 {"range": [80, 100],"color": "#DCFCE7"},
             ],
         },
-        title={"text": "Taux de succès global", "font": {"size": 14}},
+        title={"text": "Taux de succès", "font": {"size": 13}},
     ))
-    fig.update_layout(**_LAYOUT, height=250)
+    fig.update_layout(**_LAYOUT, height=230)
     return fig
 
 
@@ -137,10 +168,9 @@ def rows_bar(df, top_n=20):
         color_discrete_sequence=[CIH_BLUE],
         hover_data={"DAG_ID": True, "Rows_Affected_Total": ":,"},
         labels={"Rows_Affected_Total": "Lignes traitées", "Label": ""},
-        title=f"Top {min(top_n, len(src))} tâches par volume",
     )
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{y}<br>%{x:,} lignes<extra></extra>")
-    return _apply(fig, 520)
+    return _round_bars(_apply(fig, 480))
 
 
 def rows_treemap(dag_summary):
@@ -152,12 +182,12 @@ def rows_treemap(dag_summary):
         src, path=["DAG_ID"], values="Total_Rows",
         color="Total_Rows",
         color_continuous_scale=[[0, "#E0F2FE"], [1, CIH_BLUE]],
-        title="Volume total par DAG",
         hover_data={"Total_Rows": ":,"},
     )
-    fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,} lignes<extra></extra>")
+    fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,} lignes<extra></extra>",
+                       marker=dict(cornerradius=6))
     fig.update_coloraxes(showscale=False)
-    return _apply(fig, 400)
+    return _apply(fig, 380)
 
 
 # ---------- Performance ----------
@@ -168,13 +198,12 @@ def duration_histogram(df):
         src, x="Duration_Minutes", nbins=35,
         color_discrete_sequence=[CIH_ORANGE],
         labels={"Duration_Minutes": "Durée (minutes)", "count": "Nb tâches"},
-        title="Distribution des durées — tâches réussies",
     )
-    fig.update_layout(**_LAYOUT, height=340,
-                      bargap=0.05,
+    fig.update_layout(**_LAYOUT, height=320,
+                      bargap=0.12,
                       xaxis=dict(gridcolor=CIH_BORDER),
                       yaxis=dict(gridcolor=CIH_BORDER))
-    return fig
+    return _round_bars(fig, radius=4)
 
 
 def slowest_tasks_bar(df, top_n=15):
@@ -186,10 +215,9 @@ def slowest_tasks_bar(df, top_n=15):
         color="Task_State", color_discrete_map=STATE_COLORS,
         hover_data={"DAG_ID": True, "Task_ID": True, "Duration_Display": True},
         labels={"Duration_Minutes": "Durée (min)", "Label": "", "Task_State": "État"},
-        title=f"Top {min(top_n, len(src))} tâches les plus longues",
     )
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>Durée : %{customdata[2]}<extra></extra>")
-    return _apply(fig, 520)
+    return _round_bars(_apply(fig, 480))
 
 
 def duration_by_operator(df):
@@ -199,36 +227,40 @@ def duration_by_operator(df):
         color="Operator_Type",
         color_discrete_sequence=[CIH_ORANGE, CIH_BLUE, "#22C55E", "#8B5CF6"],
         labels={"Operator_Type": "Opérateur", "Duration_Minutes": "Durée (min)"},
-        title="Durée par type d'opérateur",
         points="outliers",
     )
-    fig.update_layout(**_LAYOUT, height=340, showlegend=False,
+    fig.update_layout(**_LAYOUT, height=320, showlegend=False,
                       yaxis=dict(gridcolor=CIH_BORDER))
     return fig
 
 
 # ---------- Schedule ----------
 
-def schedule_pie(df):
-    src = df.drop_duplicates("DAG_ID")[["DAG_ID", "Schedule_Category"]].copy()
-    counts = src["Schedule_Category"].value_counts().reset_index()
-    counts.columns = ["Fréquence", "Nombre"]
+SCHEDULE_COLORS = {
+    "Journalier": CIH_ORANGE, "Intra-journalier": CIH_BLUE, "Hebdomadaire": "#22C55E",
+    "Mensuel": "#F59E0B", "Manuel": "#8B5CF6", "Annuel / Ponctuel": "#EC4899",
+    "Personnalisé": "#9CA3AF",
+}
 
-    fig = go.Figure(go.Pie(
-        labels=counts["Fréquence"],
-        values=counts["Nombre"],
-        hole=0.55,
-        marker=dict(
-            colors=[CIH_ORANGE, CIH_BLUE, "#22C55E", "#F59E0B", "#8B5CF6", "#EC4899"],
-            line=dict(color="white", width=2),
-        ),
-        textinfo="label+percent",
-        hovertemplate="<b>%{label}</b><br>%{value} DAGs<extra></extra>",
-    ))
-    fig.update_layout(**_LAYOUT, title="Fréquence de planification des DAGs",
-                      height=360, showlegend=True,
-                      legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center"))
-    return fig
+
+def schedule_distribution_segments(df):
+    src = df.drop_duplicates("DAG_ID")
+    counts = src["Schedule_Category"].value_counts()
+    return [
+        {"label": cat, "color": SCHEDULE_COLORS.get(cat, "#9CA3AF"), "value": int(n)}
+        for cat, n in counts.items()
+    ]
+
+
+def schedule_pie(df):
+    segs = [s for s in schedule_distribution_segments(df) if s["value"] > 0]
+    total = sum(s["value"] for s in segs)
+    return _donut(
+        labels=[s["label"] for s in segs],
+        values=[s["value"] for s in segs],
+        colors=[s["color"] for s in segs],
+        center_top=total, center_bottom="DAGs",
+    )
 
 
 def schedule_hour_bar(df):
@@ -251,9 +283,8 @@ def schedule_hour_bar(df):
         hour_counts, x="Hour", y="DAGs",
         color_discrete_sequence=[CIH_BLUE],
         labels={"Hour": "Heure de démarrage (UTC)", "DAGs": "Nombre de DAGs"},
-        title="DAGs par heure de démarrage",
     )
-    fig.update_layout(**_LAYOUT, height=320,
+    fig.update_layout(**_LAYOUT, height=300,
                       xaxis=dict(tickmode="linear", tick0=0, dtick=1, gridcolor=CIH_BORDER),
                       yaxis=dict(gridcolor=CIH_BORDER))
-    return fig
+    return _round_bars(fig, radius=4)

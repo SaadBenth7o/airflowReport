@@ -2,17 +2,15 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import rows_bar, rows_treemap
-from utils.theme import apply_theme, kpi_card, section_title
+from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
 
-st.set_page_config(page_title="Data Volume · Airflow", page_icon=None, layout="wide")
-
+st.set_page_config(page_title="Volume de donnees · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-
-st.markdown("## Data Volume")
-st.caption("Analyse des volumes de donnees traites par les taches Airflow depuis le 01/01/2026.")
+n_ok        = int((~dag_summary["Has_Failure"]).sum())
+n_ko        = int(dag_summary["Has_Failure"].sum())
 
 total_rows      = df["Rows_Affected_Total"].sum()
 tasks_with_rows = (df["Rows_Affected_Total"] > 0).sum()
@@ -27,17 +25,25 @@ def fmt(n):
     return str(int(n))
 
 
+with st.sidebar:
+    sidebar_shell(st, active="volume", health_label="Sain", n_ok=n_ok, n_ko=n_ko)
+
+page_header(st, "Volume de donnees",
+            "Lignes traitees par tache et par pipeline depuis le 01/01/2026.")
+
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:
-    kpi_card(st, "Total lignes traitees", fmt(total_rows), color="#05AEEF")
+    kpi_card(st, "Total lignes traitees", fmt(total_rows),
+             sub="tous pipelines", color="#05AEEF", icon="database")
 with c2:
-    kpi_card(st, "Taches avec donnees", tasks_with_rows, color="#151213")
+    kpi_card(st, "Taches avec donnees", tasks_with_rows,
+             sub="sur " + str(len(df)) + " taches", color="#151213", icon="layers")
 with c3:
     kpi_card(st, "Tache max", fmt(top_task["Rows_Affected_Total"]),
-             sub=top_task["Task_ID"][:20], color="#F0481C")
+             sub=top_task["Task_ID"][:22], color="#F0481C", icon="trend")
 with c4:
     kpi_card(st, "DAG max", fmt(top_dag_rows["Total_Rows"]),
-             sub=top_dag_rows["DAG_ID"][:20], color="#22C55E")
+             sub=top_dag_rows["DAG_ID"][:22], color="#22C55E", icon="hash")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -45,55 +51,45 @@ top_n = st.slider("Nombre de taches a afficher", min_value=5, max_value=40, valu
 
 col_l, col_r = st.columns([1.4, 1], gap="medium")
 with col_l:
-    section_title(st, "Top taches par volume", color="#05AEEF")
-    st.plotly_chart(rows_bar(df, top_n=top_n), use_container_width=True)
+    with st.container(border=True):
+        section_title(st, "Top taches par volume", color="#05AEEF")
+        st.plotly_chart(rows_bar(df, top_n=top_n), use_container_width=True)
 with col_r:
-    section_title(st, "Repartition par DAG", color="#05AEEF")
-    st.plotly_chart(rows_treemap(dag_summary), use_container_width=True)
+    with st.container(border=True):
+        section_title(st, "Repartition par DAG", color="#F0481C", right="proportionnel")
+        st.plotly_chart(rows_treemap(dag_summary), use_container_width=True)
 
-st.markdown("---")
-section_title(st, "Toutes les taches avec donnees (lignes > 0)", color="#05AEEF")
+st.markdown("<br>", unsafe_allow_html=True)
 
-has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
-has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
-has_rows["Etat_FR"]  = has_rows["Task_State"].map({
-    "success":         "Succes",
-    "failed":          "Echec",
-    "skipped":         "Ignoree",
-    "upstream_failed": "Upstream",
-    "running":         "En cours",
-}).fillna(has_rows["Task_State"])
+with st.container(border=True):
+    section_title(st, "Toutes les taches avec donnees", color="#05AEEF")
 
-dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
-if dag_filter:
-    has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
+    has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
+    has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
+    has_rows["Etat_FR"]  = has_rows["Task_State"].map({
+        "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
+        "upstream_failed": "Upstream", "running": "En cours",
+    }).fillna(has_rows["Task_State"])
 
-display = has_rows[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "Etat_FR", "Task_Last_Run_Date"]].copy()
-display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
-display.columns = ["DAG", "Tache", "Script", "Lignes traitees", "Etat", "Dernier run"]
+    dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
+    if dag_filter:
+        has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
 
-st.dataframe(
-    display,
-    use_container_width=True,
-    height=min(580, 38 * len(display) + 40),
-    column_config={
-        "DAG":             st.column_config.TextColumn("DAG", width="medium"),
-        "Tache":           st.column_config.TextColumn("Tache", width="medium"),
-        "Script":          st.column_config.TextColumn("Script", width="medium"),
-        "Lignes traitees": st.column_config.TextColumn("Lignes traitees", width="small"),
-        "Etat":            st.column_config.TextColumn("Etat", width="small"),
-        "Dernier run":     st.column_config.TextColumn("Dernier run", width="small"),
-    },
-    hide_index=True,
-)
-st.caption(f"{len(display)} tache(s) avec donnees")
+    display = has_rows[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "Etat_FR", "Task_Last_Run_Date"]].copy()
+    display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
+    display.columns = ["DAG", "Tache", "Script", "Lignes traitees", "Etat", "Dernier run"]
 
-with st.sidebar:
-    st.markdown("**Data Volume**")
-    st.markdown(f"- Total : {fmt(total_rows)} lignes")
-    st.markdown(f"- Taches actives : {tasks_with_rows}")
-    st.divider()
-    st.markdown("**Top 5 DAGs par volume**")
-    top5 = dag_summary.nlargest(5, "Total_Rows")[["DAG_ID", "Total_Rows"]]
-    for _, r in top5.iterrows():
-        st.markdown(f"- {r['DAG_ID'][:22]} · {fmt(r['Total_Rows'])}")
+    st.dataframe(
+        display, use_container_width=True,
+        height=min(580, 38 * len(display) + 40),
+        column_config={
+            "DAG":             st.column_config.TextColumn("DAG", width="medium"),
+            "Tache":           st.column_config.TextColumn("Tache", width="medium"),
+            "Script":          st.column_config.TextColumn("Script", width="medium"),
+            "Lignes traitees": st.column_config.TextColumn("Lignes traitees", width="small"),
+            "Etat":            st.column_config.TextColumn("Etat", width="small"),
+            "Dernier run":     st.column_config.TextColumn("Dernier run", width="small"),
+        },
+        hide_index=True,
+    )
+    st.caption(f"{len(display)} tache(s) avec donnees")
