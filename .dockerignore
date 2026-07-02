@@ -1,0 +1,28 @@
+# Environnements / cache Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Git / IDE / Claude
+.git
+.gitignore
+.claude/
+
+# Donnees source (montees en volume, jamais embarquees dans l'image)
+airflowhistory/
+*.xls
+*.xlsx
+*.csv
+
+# Assets non utilises au runtime (le logo utilise est deja dans assets/)
+*.webp
+docs/
+
+# Divers non necessaires a l'execution
+*.zip
+*.log
+streamlit_log.txt
+run.ps1
+README.md

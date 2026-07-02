@@ -87,6 +87,36 @@ streamlit run dashboard.py
 L'application s'ouvre automatiquement dans le navigateur par defaut. Sinon,
 ouvrez manuellement **http://localhost:8501**.
 
+### Option 3 — Docker (portable, toute machine)
+
+Recommande pour deployer sur une autre machine (OS different, ou pour
+eviter toute installation de Python/dependances en local). Necessite
+seulement [Docker](https://www.docker.com/products/docker-desktop/) —
+aucun Python requis sur la machine hote.
+
+```bash
+docker compose up -d --build
+```
+
+Le dashboard est alors accessible sur **http://localhost:8501**. Le
+dossier `airflowhistory/` est monte en volume (voir `docker-compose.yml`) :
+le fichier `.xls` place localement dans ce dossier est directement
+disponible dans le conteneur, et toute mise a jour (remplacement manuel ou
+upload depuis l'UI) persiste sur l'hote sans reconstruire l'image.
+
+```bash
+docker compose logs -f       # suivre les logs
+docker compose down          # arreter le conteneur
+docker compose up -d --build # reconstruire apres un changement de code
+```
+
+> Le fichier `airflowhistory/airflow_tasks_2026_stats_V2.xls` doit deja
+> exister sur l'hote **avant** le premier `docker compose up` (le dossier
+> est monte tel quel dans le conteneur). Sans ce fichier, l'application
+> demarre mais affiche une erreur au chargement — le widget d'upload de la
+> sidebar sert a **remplacer** un fichier existant, pas a amorcer un
+> dashboard vide.
+
 ## Mettre a jour les donnees
 
 Le dashboard est concu pour un usage recurrent : a chaque nouvelle
@@ -131,6 +161,9 @@ invalide automatiquement des qu'un nouveau fichier est applique.
 ```
 AIRFLOW_MISSION/
 ├── run.ps1                     # Script de lancement (Windows/PowerShell)
+├── Dockerfile                   # Image Docker de l'application
+├── docker-compose.yml            # Orchestration (port 8501 + volume donnees)
+├── .dockerignore
 ├── dashboard.py                 # Page principale — Vue d'ensemble
 ├── pages/
 │   ├── 1_Failures.py            # Echecs & alertes
@@ -142,6 +175,8 @@ AIRFLOW_MISSION/
 │   ├── data_loader.py           # Lecture XLS, nettoyage, agregation par DAG
 │   ├── charts.py                # Graphiques Plotly (donuts, barres, gauges...)
 │   └── theme.py                 # Charte CSS CIH, navigation, composants (KPI, icones SVG)
+├── assets/
+│   └── cih-logo.png             # Logo CIH Bank (embarque en base64 dans la sidebar)
 ├── .streamlit/
 │   └── config.toml              # Theme Streamlit (couleurs CIH)
 ├── docs/
@@ -194,3 +229,12 @@ et qu'il s'agit bien du format `.xls` binaire (pas `.xlsx`).
 l'export de reference (voir liste dans [Mettre a jour les donnees](#mettre-a-jour-les-donnees)).
 Verifiez que le script de reporting Airflow n'a pas ete modifie (colonne
 renommee/supprimee) avant de reessayer.
+
+**`docker compose up` echoue avec une erreur de connexion au moteur Docker**
+→ Docker Desktop n'est pas demarre. Lancez l'application Docker Desktop et
+attendez que l'icone de la barre des taches indique "running" avant de
+reessayer.
+
+**Le conteneur Docker affiche une erreur au demarrage (fichier introuvable)**
+→ Le fichier `airflowhistory/airflow_tasks_2026_stats_V2.xls` doit exister
+sur l'hote avant `docker compose up` (voir [Option 3 — Docker](#option-3--docker-portable-toute-machine)).

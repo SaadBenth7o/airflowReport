@@ -1,0 +1,12 @@
+services:
+  dashboard:
+    build: .
+    container_name: airflow-report-cih
+    ports:
+      - "8501:8501"
+    volumes:
+      # Le dossier de donnees reste sur l'hote : deposer/remplacer le XLS
+      # ici ne necessite pas de reconstruire l'image, et les fichiers
+      # uploades depuis l'UI y sont ecrits (persistance entre redemarrages).
+      - ./airflowhistory:/app/airflowhistory
+    restart: unless-stopped
