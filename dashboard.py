@@ -110,18 +110,26 @@ def render_alert_row(row, kind):
             if is_failed else f"{int(row['upstream_failed'])} tache(s) bloquee(s)")
     badge = f'<span class="cih-alert-badge">Ancien &middot; {age} j</span>' if old else ""
     dag_href = f"DAG_Explorer?dag={quote(row['DAG_ID'])}"
+    state_icon = svg_icon("x" if is_failed else "alert", 16, col)
+    chevron_icon = svg_icon("chevron", 15, "#4E4B4C")
 
-    return f"""<div class="cih-alert-row" style="background:{bg};border-left-color:{col};">
-      <div class="cih-alert-icon">{svg_icon('x' if is_failed else 'alert', 16, col)}</div>
-      <div class="cih-alert-body">
-        <div class="cih-alert-id">{row['DAG_ID']}</div>
-        <div class="cih-alert-meta">{meta} &middot; {last}</div>
-      </div>
-      {badge}
-      <a class="cih-alert-go" href="{dag_href}" target="_self" title="Voir le detail du DAG">
-        {svg_icon('chevron', 15, '#4E4B4C')}
-      </a>
-    </div>"""
+    # Construit en une seule ligne HTML (litteraux adjacents concatenes) :
+    # une f-string multi-lignes indentee, quand une valeur interpolee est
+    # vide (ex: badge=""), produit une ligne blanche que le parseur
+    # Markdown lit comme separateur de bloc — ca coupe le HTML en plein
+    # milieu et tout le reste (y compris les lignes suivantes) s'affiche
+    # en texte brut au lieu d'etre rendu.
+    return (
+        f'<div class="cih-alert-row" style="background:{bg};border-left-color:{col};">'
+        f'<div class="cih-alert-icon">{state_icon}</div>'
+        f'<div class="cih-alert-body">'
+        f'<div class="cih-alert-id">{row["DAG_ID"]}</div>'
+        f'<div class="cih-alert-meta">{meta} &middot; {last}</div>'
+        f'</div>'
+        f'{badge}'
+        f'<a class="cih-alert-go" href="{dag_href}" target="_self" title="Voir le detail du DAG">{chevron_icon}</a>'
+        f'</div>'
+    )
 
 
 # ── Sidebar ──────────────────────────────────────────────────────────────

@@ -104,26 +104,25 @@ with col_detail:
                 f"font-family:ui-monospace,Menlo,monospace;letter-spacing:-.01em;'>{sel_id}</div>",
                 unsafe_allow_html=True,
             )
+            owner_icon    = svg_icon("user", 14, "#9AA0A8")
+            calendar_icon = svg_icon("calendar", 14, "#9AA0A8")
             st.markdown(
-                f"""<div style='display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;
-                     font-size:12.5px;color:#4E4B4C;'>
-                  <span style='display:flex;align-items:center;gap:6px;'>
-                    {svg_icon('user', 14, '#9AA0A8')}{dag_row['Owner']}</span>
-                  <span style='display:flex;align-items:center;gap:6px;'>
-                    {svg_icon('calendar', 14, '#9AA0A8')}{dag_row['Schedule_Category']}</span>
-                  <span style='font-family:ui-monospace,Menlo,monospace;background:#F5F8FC;
-                    border:1px solid #E9E8E8;border-radius:6px;padding:2px 8px;color:#151213;'>
-                    {dag_row['Schedule_Cron']}</span>
-                </div>""",
+                f'<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:12.5px;color:#4E4B4C;">'
+                f'<span style="display:flex;align-items:center;gap:6px;">{owner_icon}{dag_row["Owner"]}</span>'
+                f'<span style="display:flex;align-items:center;gap:6px;">{calendar_icon}{dag_row["Schedule_Category"]}</span>'
+                f'<span style="font-family:ui-monospace,Menlo,monospace;background:#F5F8FC;'
+                f'border:1px solid #E9E8E8;border-radius:6px;padding:2px 8px;color:#151213;">'
+                f'{dag_row["Schedule_Cron"]}</span>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
         with col_h2:
             st.markdown(
-                f"""<div style='text-align:right;'>
-                  <div style='font-size:11px;color:#9AA0A8;font-weight:600;'>Lignes traitees</div>
-                  <div style='font-size:22px;font-weight:800;color:#F0481C;
-                    font-variant-numeric:tabular-nums;'>{fmt(dag_row['Total_Rows'])}</div>
-                </div>""",
+                f'<div style="text-align:right;">'
+                f'<div style="font-size:11px;color:#9AA0A8;font-weight:600;">Lignes traitees</div>'
+                f'<div style="font-size:22px;font-weight:800;color:#F0481C;font-variant-numeric:tabular-nums;">'
+                f'{fmt(dag_row["Total_Rows"])}</div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 

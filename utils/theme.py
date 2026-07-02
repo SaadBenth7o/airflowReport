@@ -136,18 +136,27 @@ def apply_theme(st):
 
 
 def page_header(st, title, subtitle="", crumb=None):
-    """En-tête de page avec breadcrumb, identique au header du mockup."""
+    """En-tête de page avec breadcrumb, identique au header du mockup.
+
+    ATTENTION : construit en une seule ligne HTML (concatenation de
+    litteraux adjacents), jamais en f-string multi-lignes indentee. Une
+    ligne qui ne contiendrait QUE une valeur vide (ex: sous-titre absent)
+    deviendrait une ligne blanche aux yeux du parseur Markdown, ce qui
+    termine prematurement le bloc HTML et fait fuir tout le reste en texte
+    brut (bug reel rencontre avec les cartes d'alerte — voir render_alert_row).
+    """
     crumb = crumb or title
+    sub_html = f'<p class="cih-page-sub">{subtitle}</p>' if subtitle else ""
     st.markdown(
-        f"""<div class="cih-page-header">
-          <div class="cih-breadcrumb">
-            <span>Airflow</span>
-            <span style="opacity:.4;margin:0 4px">/</span>
-            <span style="color:{CIH['orange']};font-weight:700;">{crumb}</span>
-          </div>
-          <h1 class="cih-page-title">{title}</h1>
-          {"" if not subtitle else f'<p class="cih-page-sub">{subtitle}</p>'}
-        </div>""",
+        f'<div class="cih-page-header">'
+        f'<div class="cih-breadcrumb">'
+        f'<span>Airflow</span>'
+        f'<span style="opacity:.4;margin:0 4px">/</span>'
+        f'<span style="color:{CIH["orange"]};font-weight:700;">{crumb}</span>'
+        f'</div>'
+        f'<h1 class="cih-page-title">{title}</h1>'
+        f'{sub_html}'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -165,10 +174,10 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
         '<div class="cih-brand-logo">CIH</div>'
     )
     st.sidebar.markdown(
-        f"""<div class="cih-brand">
-          {logo_html}
-          <div class="cih-brand-sub-standalone">Data Platform &middot; Airflow</div>
-        </div>""",
+        f'<div class="cih-brand">'
+        f'{logo_html}'
+        f'<div class="cih-brand-sub-standalone">Data Platform &middot; Airflow</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -186,26 +195,25 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
     hc = (CIH["green"] if health_label == "Sain"
           else CIH["red"] if health_label == "Critique"
           else CIH["amber"])
+    n_ko_color = CIH["red_dk"] if n_ko > 0 else CIH["ink"]
     st.sidebar.markdown(
-        f"""
-        <div class="cih-health-widget">
-          <div class="cih-health-row">
-            <span class="cih-dot" style="background:{hc};"></span>
-            <span style="font-size:13px;font-weight:700;color:{CIH['ink']};">Sante globale</span>
-            <span class="cih-health-badge" style="color:{hc};background:{hc}18;">{health_label}</span>
-          </div>
-          <div class="cih-health-boxes">
-            <div class="cih-health-box">
-              <div style="font-size:17px;font-weight:800;color:{CIH['green_dk']};">{n_ok}</div>
-              <div style="font-size:10.5px;color:{CIH['ink2']};">sains</div>
-            </div>
-            <div class="cih-health-box">
-              <div style="font-size:17px;font-weight:800;color:{CIH['red_dk'] if n_ko > 0 else CIH['ink']};">{n_ko}</div>
-              <div style="font-size:10.5px;color:{CIH['ink2']};">degrades</div>
-            </div>
-          </div>
-        </div>
-        """,
+        f'<div class="cih-health-widget">'
+        f'<div class="cih-health-row">'
+        f'<span class="cih-dot" style="background:{hc};"></span>'
+        f'<span style="font-size:13px;font-weight:700;color:{CIH["ink"]};">Sante globale</span>'
+        f'<span class="cih-health-badge" style="color:{hc};background:{hc}18;">{health_label}</span>'
+        f'</div>'
+        f'<div class="cih-health-boxes">'
+        f'<div class="cih-health-box">'
+        f'<div style="font-size:17px;font-weight:800;color:{CIH["green_dk"]};">{n_ok}</div>'
+        f'<div style="font-size:10.5px;color:{CIH["ink2"]};">sains</div>'
+        f'</div>'
+        f'<div class="cih-health-box">'
+        f'<div style="font-size:17px;font-weight:800;color:{n_ko_color};">{n_ko}</div>'
+        f'<div style="font-size:10.5px;color:{CIH["ink2"]};">degrades</div>'
+        f'</div>'
+        f'</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -247,16 +255,16 @@ def kpi_card(st, label, value, sub="", color=None, icon=None,
             f'{arrow} {delta}</span>'
         )
 
+    nbsp = "&nbsp;" if delta_html and sub else ""
     st.markdown(
-        f"""<div class="cih-kpi">
-          <div style="display:flex;align-items:flex-start;
-                      justify-content:space-between;margin-bottom:10px;">
-            <div class="cih-kpi-label">{label}</div>
-            {icon_html}
-          </div>
-          <div class="cih-kpi-value" style="color:{color};">{value}</div>
-          <div class="cih-kpi-sub">{delta_html}{"&nbsp;" if delta_html and sub else ""}{sub}</div>
-        </div>""",
+        f'<div class="cih-kpi">'
+        f'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">'
+        f'<div class="cih-kpi-label">{label}</div>'
+        f'{icon_html}'
+        f'</div>'
+        f'<div class="cih-kpi-value" style="color:{color};">{value}</div>'
+        f'<div class="cih-kpi-sub">{delta_html}{nbsp}{sub}</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -280,12 +288,14 @@ def donut_legend(st, segments):
         if s["value"] <= 0:
             continue
         pct = round(s["value"] / total * 100)
-        rows += f"""<div class="cih-legend-row">
-          <span class="cih-legend-dot" style="background:{s['color']};"></span>
-          <span class="cih-legend-label">{s['label']}</span>
-          <span class="cih-legend-value">{s['value']:,}</span>
-          <span class="cih-legend-pct">{pct}%</span>
-        </div>"""
+        rows += (
+            f'<div class="cih-legend-row">'
+            f'<span class="cih-legend-dot" style="background:{s["color"]};"></span>'
+            f'<span class="cih-legend-label">{s["label"]}</span>'
+            f'<span class="cih-legend-value">{s["value"]:,}</span>'
+            f'<span class="cih-legend-pct">{pct}%</span>'
+            f'</div>'
+        )
     st.markdown(f'<div class="cih-legend">{rows}</div>', unsafe_allow_html=True)
 
 
