@@ -9,7 +9,7 @@ from utils.theme import (
 )
 
 st.set_page_config(
-    page_title="CIH Bank · Airflow Report",
+    page_title="Airflow Reports",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",

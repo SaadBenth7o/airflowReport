@@ -14,17 +14,18 @@ from utils.data_loader import (
     STATE_COLORS as _STATE_COLORS, STATE_FR as _STATE_FR_LABELS,
 )
 
-_LOGO_PATH = Path(__file__).parent.parent / "assets" / "cih-logo.png"
+_ASSETS = Path(__file__).parent.parent / "assets"
 
 
-def _load_logo_b64():
+def _load_b64(filename):
     try:
-        return base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
+        return base64.b64encode((_ASSETS / filename).read_bytes()).decode("ascii")
     except Exception:
         return ""
 
 
-_LOGO_B64 = _load_logo_b64()
+_LOGO_B64    = _load_b64("cih-logo.png")
+_AIRFLOW_B64 = _load_b64("airflow-pin.png")   # pinwheel officiel Apache Airflow
 
 # ── Palette ──────────────────────────────────────────────────────────────
 CIH = {
@@ -199,11 +200,22 @@ def sidebar_shell(st, active):
         if _LOGO_B64 else
         '<div class="cih-brand-logo">CIH</div>'
     )
+    airflow_html = (
+        f'<img src="data:image/png;base64,{_AIRFLOW_B64}" alt="Airflow" class="cih-brand-airflow"/>'
+        if _AIRFLOW_B64 else ""
+    )
+    # Tout le bloc marque (logo CIH + pinwheel Airflow) est un lien vers
+    # la vue d'ensemble — meme cible que le bouton de navigation.
+    # Uniquement des <span> a l'interieur : le parseur re-parente les
+    # elements bloc (<div>) HORS de l'ancre, qui se retrouve vide.
     st.sidebar.markdown(
-        f'<div class="cih-brand">'
+        f'<a class="cih-brand-link" href="/" target="_self" title="Vue d\'ensemble">'
+        f'<span class="cih-brand">'
         f'{logo_html}'
-        f'<div class="cih-brand-sub-standalone">Data Platform &middot; Airflow</div>'
-        f'</div>',
+        f'<span class="cih-brand-sub-standalone">{airflow_html}'
+        f'<span>Data Platform &middot; Airflow</span></span>'
+        f'</span>'
+        f'</a>',
         unsafe_allow_html=True,
     )
 
@@ -420,12 +432,22 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 [data-testid="stSidebar"] .block-container {{ padding: 0 !important; }}
 
 /* ── brand CIH ── */
+/* Le bloc entier est un lien vers la vue d'ensemble : neutraliser le
+   style d'ancre par defaut de Streamlit (bleu + soulignement). */
+[data-testid="stSidebar"] a.cih-brand-link,
+[data-testid="stSidebar"] a.cih-brand-link:visited {{
+    display: block; text-decoration: none !important; color: inherit !important;
+    cursor: pointer;
+}}
+[data-testid="stSidebar"] a.cih-brand-link:hover .cih-brand {{ background: {CIH['bg']}; }}
 .cih-brand {{
     display: flex; flex-direction: column; align-items: flex-start; gap: 9px;
     padding: 20px 20px 16px;
     border-bottom: 1px solid {CIH['border']};
+    transition: background .12s;
 }}
 .cih-brand-logo-img {{ width: 100%; max-width: 100%; height: auto; display: block; }}
+.cih-brand-airflow {{ width: 16px; height: 16px; flex: none; display: block; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};
@@ -434,6 +456,7 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     color: #fff; font-weight: 800; font-size: 13px; letter-spacing: -.01em;
 }}
 .cih-brand-sub-standalone {{
+    display: flex; align-items: center; gap: 7px;
     font-size: 11px; font-weight: 600; color: {CIH['ink2']}; letter-spacing: .02em;
 }}
 

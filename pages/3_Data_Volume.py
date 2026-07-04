@@ -29,11 +29,7 @@ def fmt(n):
 with st.sidebar:
     sidebar_shell(st, active="volume")
 
-page_header(st, "Volume de donnees (connu)",
-            "Lignes traitees par tache et par pipeline. Volumes connus uniquement : "
-            "les scripts PySpark ne remontent pas leurs comptages (seuls les "
-            "traitements SQL le font) — ce que vous voyez ici n'est pas l'exhaustivite.",
-            crumb="Volume de donnees")
+page_header(st, "Volume de donnees (connu)", crumb="Volume de donnees")
 
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:
