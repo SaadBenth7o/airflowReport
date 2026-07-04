@@ -15,7 +15,10 @@ dag_summary = build_dag_summary()
 
 active  = df[(df["Duration_Seconds"] > 0) & (df["Task_State"] == "success")]
 all_dur = df[df["Duration_Seconds"] > 0]
-avg_min = active["Duration_Minutes"].mean() if len(active) > 0 else 0
+# Mediane plutot que moyenne : les donnees contiennent volontairement des
+# anomalies (taches zombies de plusieurs milliers d'heures, gardees
+# visibles pour etre traitees) qui rendraient une moyenne absurde.
+med_min = active["Duration_Minutes"].median() if len(active) > 0 else 0
 p95_min = active["Duration_Minutes"].quantile(0.95) if len(active) > 0 else 0
 max_task = all_dur.nlargest(1, "Duration_Seconds").iloc[0] if len(all_dur) > 0 else None
 
@@ -35,11 +38,13 @@ page_header(st, "Performance",
 
 c1, c2, c3 = st.columns(3, gap="small")
 with c1:
-    kpi_card(st, "Duree moyenne", fmtd(avg_min),
-             sub="par tache reussie", color="#05AEEF", icon="clock")
+    kpi_card(st, "Duree mediane", fmtd(med_min),
+             sub=f"par tache reussie · p95 : {fmtd(p95_min)}", color="#05AEEF", icon="clock")
 with c2:
     max_val  = max_task["Duration_Minutes"] if max_task is not None else 0
     max_name = max_task["Task_ID"][:22] if max_task is not None else "—"
+    if max_task is not None and max_task["Is_Out_Of_Period"]:
+        max_name += " · hors periode"
     kpi_card(st, "Tache la plus longue", fmtd(max_val),
              sub=max_name, color="#F0481C", icon="zap")
 with c3:

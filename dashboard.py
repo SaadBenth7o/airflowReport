@@ -176,7 +176,7 @@ with c4:
              color="#F59E0B", icon="zap")
 with c5:
     kpi_card(st, "Lignes traitees", fmt(total_rows),
-             sub="depuis le 01/01/2026",
+             sub="total de l'export",
              color="#F0481C", icon="database")
 
 st.markdown("<br>", unsafe_allow_html=True)

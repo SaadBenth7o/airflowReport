@@ -30,7 +30,7 @@ with st.sidebar:
     sidebar_shell(st, active="volume")
 
 page_header(st, "Volume de donnees",
-            "Lignes traitees par tache et par pipeline depuis le 01/01/2026.")
+            "Lignes traitees par tache et par pipeline.")
 
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:

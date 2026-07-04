@@ -1,3 +1,4 @@
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -198,12 +199,22 @@ def rows_treemap(dag_summary):
 # ---------- Performance ----------
 
 def duration_histogram(df):
+    # Binning en log10 : les donnees contiennent des anomalies gardees
+    # volontairement visibles (taches zombies de milliers d'heures) — en
+    # echelle lineaire, tout s'ecrasait dans le premier bin.
     src = df[(df["Duration_Minutes"] > 0) & (df["Task_State"] == "success")].copy()
+    src["Log_Minutes"] = np.log10(src["Duration_Minutes"])
     fig = px.histogram(
-        src, x="Duration_Minutes", nbins=35,
+        src, x="Log_Minutes", nbins=40,
         color_discrete_sequence=[CIH_ORANGE],
-        labels={"Duration_Minutes": "Durée (minutes)", "count": "Nb tâches"},
+        labels={"Log_Minutes": "Durée (minutes, échelle log)", "count": "Nb tâches"},
     )
+    ticks = list(range(-2, 6))
+    fig.update_xaxes(
+        tickvals=ticks,
+        ticktext=["0,01", "0,1", "1", "10", "100", "1 000", "10 000", "100 000"],
+    )
+    fig.update_traces(hovertemplate="%{y} tâche(s)<extra></extra>")
     fig.update_layout(**_LAYOUT, height=320,
                       bargap=0.12,
                       xaxis=dict(gridcolor=CIH_BORDER),
@@ -232,8 +243,9 @@ def duration_by_operator(df):
         src, x="Operator_Type", y="Duration_Minutes",
         color="Operator_Type",
         color_discrete_sequence=[CIH_ORANGE, CIH_BLUE, "#22C55E", "#8B5CF6"],
-        labels={"Operator_Type": "Opérateur", "Duration_Minutes": "Durée (min)"},
+        labels={"Operator_Type": "Opérateur", "Duration_Minutes": "Durée (min, échelle log)"},
         points="outliers",
+        log_y=True,  # les anomalies (durees extremes) ecrasaient la boite en lineaire
     )
     fig.update_layout(**_LAYOUT, height=320, showlegend=False,
                       yaxis=dict(gridcolor=CIH_BORDER))
