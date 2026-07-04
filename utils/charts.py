@@ -206,9 +206,9 @@ def rows_treemap(dag_summary):
 # ---------- Performance ----------
 
 def duration_histogram(df):
-    # Binning en log10 : les donnees contiennent des anomalies gardees
-    # volontairement visibles (taches zombies de milliers d'heures) — en
-    # echelle lineaire, tout s'ecrasait dans le premier bin.
+    # Binning en log10 : les durees s'etalent de quelques secondes a des
+    # milliers d'heures — en echelle lineaire, tout s'ecrasait dans le
+    # premier bin et les valeurs extremes devenaient invisibles.
     src = df[(df["Duration_Minutes"] > 0) & (df["Task_State"] == "success")].copy()
     src["Log_Minutes"] = np.log10(src["Duration_Minutes"])
     fig = px.histogram(

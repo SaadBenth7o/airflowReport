@@ -29,15 +29,18 @@ def fmt(n):
 with st.sidebar:
     sidebar_shell(st, active="volume")
 
-page_header(st, "Volume de donnees",
-            "Lignes traitees par tache et par pipeline.")
+page_header(st, "Volume de donnees (connu)",
+            "Lignes traitees par tache et par pipeline. Volumes connus uniquement : "
+            "les scripts PySpark ne remontent pas leurs comptages (seuls les "
+            "traitements SQL le font) — ce que vous voyez ici n'est pas l'exhaustivite.",
+            crumb="Volume de donnees")
 
 c1, c2, c3, c4 = st.columns(4, gap="small")
 with c1:
     kpi_card(st, "Total lignes traitees", fmt(total_rows),
-             sub="tous pipelines", color="#05AEEF", icon="database")
+             sub="volume connu", color="#05AEEF", icon="database")
 with c2:
-    kpi_card(st, "Taches avec donnees", tasks_with_rows,
+    kpi_card(st, "Taches avec volume connu", tasks_with_rows,
              sub="sur " + str(len(df)) + " taches", color="#151213", icon="layers")
 with c3:
     kpi_card(st, "Tache max", fmt(top_task["Rows_Affected_Total"]),
@@ -63,7 +66,7 @@ with col_r:
 st.markdown("<br>", unsafe_allow_html=True)
 
 with st.container(border=True):
-    section_title(st, "Toutes les taches avec donnees", color="#05AEEF")
+    section_title(st, "Toutes les taches avec volume connu", color="#05AEEF")
 
     has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
@@ -88,4 +91,4 @@ with st.container(border=True):
         },
         hide_index=True,
     )
-    st.caption(f"{len(display)} tache(s) avec donnees")
+    st.caption(f"{len(display)} tache(s) avec volume connu")

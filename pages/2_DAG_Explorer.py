@@ -128,11 +128,18 @@ with col_detail:
                 unsafe_allow_html=True,
             )
         with col_h2:
+            # 0 ligne ne veut pas dire "rien traite" : les scripts PySpark
+            # ne remontent pas leurs comptages (seuls les traitements SQL
+            # le font) — on affiche "Inconnu" plutot qu'un zero trompeur.
+            if dag_row["Total_Rows"] > 0:
+                rows_html = (f'<div style="font-size:22px;font-weight:800;color:#F0481C;'
+                             f'font-variant-numeric:tabular-nums;">{fmt(dag_row["Total_Rows"])}</div>')
+            else:
+                rows_html = '<div style="font-size:16px;font-weight:700;color:#9AA0A8;">Inconnu</div>'
             st.markdown(
                 f'<div style="text-align:right;">'
                 f'<div style="font-size:11px;color:#9AA0A8;font-weight:600;">Lignes traitees</div>'
-                f'<div style="font-size:22px;font-weight:800;color:#F0481C;font-variant-numeric:tabular-nums;">'
-                f'{fmt(dag_row["Total_Rows"])}</div>'
+                f'{rows_html}'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -159,7 +166,7 @@ with col_detail:
         ]].copy()
         task_display["Task_Last_Run_Date"] = task_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(
-            lambda n: f"{int(n):,}" if n > 0 else "—"
+            lambda n: f"{int(n):,}" if n > 0 else "Inconnu"
         )
         task_display.columns = ["Tache", "Operateur", "Script", "Etat", "Dernier run", "Duree", "Lignes"]
         st.dataframe(

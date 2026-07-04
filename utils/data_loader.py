@@ -7,12 +7,6 @@ from datetime import datetime
 BASE_DIR = Path(__file__).parent.parent
 XLS_PATH = BASE_DIR / "airflowhistory" / "airflow_tasks_2026_stats_V2.xls"
 
-# Debut de la periode de reporting. Les lignes plus anciennes ne sont PAS
-# exclues — l'objectif du projet est justement de reperer ces DAGs zombies
-# (actifs cote Airflow mais qui ne tournent plus) pour les desactiver.
-# Elles sont marquees (Is_Out_Of_Period) et mises en evidence dans l'UI.
-REPORT_PERIOD_START = pd.Timestamp("2026-01-01")
-
 # Seuil (nb de taches failed + upstream_failed) au-dela duquel la sante
 # globale passe de "Degrade" a "Critique".
 CRITICAL_PROBLEM_THRESHOLD = 10
@@ -157,20 +151,8 @@ def load_data(path=str(XLS_PATH)):
     df["State_FR"]           = df["Task_State"].map(STATE_FR).fillna(df["Task_State"])
     df["Schedule_Category"]  = df["Schedule_Cron"].apply(_categorize_schedule)
     df["Rows_Display"]       = df["Rows_Affected_Total"].apply(_fmt_rows)
-    # Marqueur d'anomalie : dernier run anterieur a la periode du rapport.
-    # Rien n'est filtre — ces lignes doivent rester visibles partout.
-    df["Is_Out_Of_Period"]   = (
-        df["Task_Last_Run_Date"].notna()
-        & (df["Task_Last_Run_Date"] < REPORT_PERIOD_START)
-    )
 
     return df
-
-
-@st.cache_data
-def out_of_period_count(path=str(XLS_PATH)):
-    """Nb de taches dont le dernier run est anterieur a REPORT_PERIOD_START."""
-    return int(load_data(path)["Is_Out_Of_Period"].sum())
 
 
 def reference_date(df):
@@ -274,7 +256,6 @@ def save_uploaded_file(uploaded_file):
     load_data.clear()
     build_dag_summary.clear()
     compute_health.clear()
-    out_of_period_count.clear()
     return True, f"Nouveau fichier applique — {message}"
 
 

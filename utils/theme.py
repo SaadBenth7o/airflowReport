@@ -10,8 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from utils.data_loader import (
-    render_data_uploader, compute_health, load_data,
-    out_of_period_count, reference_date, REPORT_PERIOD_START,
+    render_data_uploader, compute_health, load_data, reference_date,
     STATE_COLORS as _STATE_COLORS, STATE_FR as _STATE_FR_LABELS,
 )
 
@@ -195,7 +194,6 @@ def sidebar_shell(st, active):
     health = compute_health()
     health_label, n_ok, n_ko = health["label"], health["n_ok"], health["n_ko"]
     data_date = reference_date(load_data())
-    n_zombie  = out_of_period_count()
     logo_html = (
         f'<img src="data:image/png;base64,{_LOGO_B64}" alt="CIH Bank" class="cih-brand-logo-img"/>'
         if _LOGO_B64 else
@@ -227,13 +225,6 @@ def sidebar_shell(st, active):
 
     _, fresh_color, fresh_label = data_freshness(data_date)
     date_str = data_date.strftime("%d/%m %H:%M") if pd.notna(data_date) else "—"
-    zombie_html = ""
-    if n_zombie:
-        zombie_html = (
-            f'<div style="font-size:10.5px;color:{CIH["amber"]};font-weight:600;margin-top:4px;">'
-            f'{n_zombie} tache(s) hors periode (avant '
-            f'{REPORT_PERIOD_START.strftime("%d/%m/%Y")}) — voir Echecs &amp; alertes</div>'
-        )
     st.sidebar.markdown(
         f'<div class="cih-health-widget">'
         f'<div class="cih-health-row">'
@@ -257,7 +248,6 @@ def sidebar_shell(st, active):
         f'<span style="font-size:11px;color:{CIH["ink2"]};">Donnees du <b>{date_str}</b>'
         f' &middot; <span style="color:{fresh_color};font-weight:700;">{fresh_label}</span></span>'
         f'</div>'
-        f'{zombie_html}'
         f'</div>',
         unsafe_allow_html=True,
     )

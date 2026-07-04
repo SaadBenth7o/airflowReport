@@ -1,13 +1,8 @@
 import streamlit as st
 import pandas as pd
-from utils.data_loader import (
-    load_data, build_dag_summary, reference_date, REPORT_PERIOD_START,
-)
+from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
-from utils.theme import (
-    apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR,
-)
+from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
 
 st.set_page_config(page_title="Echecs & alertes · Airflow", page_icon=None, layout="wide")
 apply_theme(st)
@@ -48,40 +43,6 @@ with c4:
              sub=f"{n_ok} sains", color="#05AEEF", icon="branch")
 
 st.markdown("<br>", unsafe_allow_html=True)
-
-# ── Anomalies hors periode : DAGs zombies a desactiver ───────────────────
-# C'est l'un des objectifs du rapport : reperer les DAGs encore actifs
-# cote Airflow mais qui n'ont pas tourne depuis avant la periode de
-# reporting (ou avec des durees aberrantes), pour les stopper.
-zombies = df[df["Is_Out_Of_Period"]]
-if not zombies.empty:
-    with st.container(border=True):
-        section_title(
-            st, "Anomalies hors periode", color="#F59E0B",
-            right=f"{zombies['DAG_ID'].nunique()} DAG(s) &middot; {len(zombies)} tache(s)",
-        )
-        st.markdown(
-            f"Dernier run **anterieur au {REPORT_PERIOD_START.strftime('%d/%m/%Y')}** : "
-            "ces DAGs sont toujours actifs cote Airflow mais ne tournent plus "
-            "(ou trainent des executions aberrantes) — candidats a la desactivation."
-        )
-        z = zombies[["DAG_ID", "Task_ID", "State_FR",
-                     "Task_Last_Run_Date", "Duration_Display"]].copy()
-        z = z.sort_values("Task_Last_Run_Date")
-        z["Task_Last_Run_Date"] = z["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
-        z.columns = ["DAG", "Tache", "Etat", "Dernier run", "Duree"]
-        st.dataframe(
-            styled_column(z, "Etat", STATE_FR_COLOR),
-            use_container_width=True, hide_index=True,
-            height=38 * len(z) + 40,
-            column_config={
-                "DAG":         st.column_config.TextColumn("DAG", width="medium"),
-                "Tache":       st.column_config.TextColumn("Tache", width="medium"),
-                "Dernier run": st.column_config.TextColumn("Dernier run", width="small"),
-                "Duree":       st.column_config.TextColumn("Duree", width="small"),
-            },
-        )
-    st.markdown("<br>", unsafe_allow_html=True)
 
 all_bad = df[df["Task_State"].isin(["failed", "upstream_failed"])].dropna(subset=["Task_Last_Run_Date"])
 if not all_bad.empty:
