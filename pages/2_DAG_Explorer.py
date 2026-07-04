@@ -7,7 +7,7 @@ from utils.theme import (
     styled_column, STATE_FR_COLOR,
 )
 
-st.set_page_config(page_title="DAG Explorer · Airflow", page_icon=None, layout="wide")
+st.set_page_config(page_title="DAG Explorer · Airflow", page_icon="assets/airflow-pin.png", layout="wide")
 apply_theme(st)
 
 df          = load_data()

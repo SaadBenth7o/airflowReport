@@ -9,7 +9,7 @@ from utils.theme import (
     styled_column,
 )
 
-st.set_page_config(page_title="Planification · Airflow", page_icon=None, layout="wide")
+st.set_page_config(page_title="Planification · Airflow", page_icon="assets/airflow-pin.png", layout="wide")
 apply_theme(st)
 
 df          = load_data()

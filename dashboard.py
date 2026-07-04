@@ -10,7 +10,7 @@ from utils.theme import (
 
 st.set_page_config(
     page_title="Airflow Reports",
-    page_icon=None,
+    page_icon="assets/airflow-pin.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )

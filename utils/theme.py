@@ -24,8 +24,9 @@ def _load_b64(filename):
         return ""
 
 
-_LOGO_B64    = _load_b64("cih-logo.png")
-_AIRFLOW_B64 = _load_b64("airflow-pin.png")   # pinwheel officiel Apache Airflow
+# Le pinwheel Airflow (assets/airflow-pin.png) sert de favicon, via le
+# parametre page_icon de st.set_page_config sur chaque page.
+_LOGO_B64 = _load_b64("cih-logo.png")
 
 # ── Palette ──────────────────────────────────────────────────────────────
 CIH = {
@@ -200,20 +201,15 @@ def sidebar_shell(st, active):
         if _LOGO_B64 else
         '<div class="cih-brand-logo">CIH</div>'
     )
-    airflow_html = (
-        f'<img src="data:image/png;base64,{_AIRFLOW_B64}" alt="Airflow" class="cih-brand-airflow"/>'
-        if _AIRFLOW_B64 else ""
-    )
-    # Tout le bloc marque (logo CIH + pinwheel Airflow) est un lien vers
-    # la vue d'ensemble — meme cible que le bouton de navigation.
-    # Uniquement des <span> a l'interieur : le parseur re-parente les
-    # elements bloc (<div>) HORS de l'ancre, qui se retrouve vide.
+    # Le bloc marque est un lien vers la vue d'ensemble — meme cible que
+    # le bouton de navigation. Uniquement des <span> a l'interieur : le
+    # parseur re-parente les elements bloc (<div>) HORS de l'ancre, qui
+    # se retrouve vide.
     st.sidebar.markdown(
         f'<a class="cih-brand-link" href="/" target="_self" title="Vue d\'ensemble">'
         f'<span class="cih-brand">'
         f'{logo_html}'
-        f'<span class="cih-brand-sub-standalone">{airflow_html}'
-        f'<span>Data Platform &middot; Airflow</span></span>'
+        f'<span class="cih-brand-sub-standalone">Data Platform &middot; Airflow</span>'
         f'</span>'
         f'</a>',
         unsafe_allow_html=True,
@@ -447,7 +443,6 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     transition: background .12s;
 }}
 .cih-brand-logo-img {{ width: 100%; max-width: 100%; height: auto; display: block; }}
-.cih-brand-airflow {{ width: 16px; height: 16px; flex: none; display: block; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};

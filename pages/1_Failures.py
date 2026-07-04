@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
 from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
 
-st.set_page_config(page_title="Echecs & alertes · Airflow", page_icon=None, layout="wide")
+st.set_page_config(page_title="Echecs & alertes · Airflow", page_icon="assets/airflow-pin.png", layout="wide")
 apply_theme(st)
 
 df          = load_data()
