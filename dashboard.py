@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 from urllib.parse import quote
-from utils.data_loader import load_data, build_dag_summary
+from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import state_donut, dag_failures_bar, state_distribution_segments
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    svg_icon, donut_legend,
+    svg_icon, donut_legend, data_freshness,
 )
 
 st.set_page_config(
@@ -61,10 +60,13 @@ st.markdown("""
 
 df          = load_data()
 dag_summary = build_dag_summary()
-now         = datetime.now()
 
-last_run     = df["Task_Last_Run_Date"].max()
-last_run_str = last_run.strftime("%d/%m/%Y  %H:%M") if pd.notna(last_run) else "N/A"
+# Date des donnees (dernier run le plus recent de l'export) : toute la
+# recence des alertes se calcule par rapport a elle, pas a l'horloge
+# murale — un export vieux de quelques jours marquait sinon TOUTES les
+# alertes "Ancien" et la page pretendait "0 echec recent".
+ref_date     = reference_date(df)
+last_run_str = ref_date.strftime("%d/%m/%Y  %H:%M") if pd.notna(ref_date) else "N/A"
 
 total_dags     = df["DAG_ID"].nunique()
 total_tasks    = len(df)
@@ -75,10 +77,6 @@ total_skipped  = (df["Task_State"] == "skipped").sum()
 total_running  = (df["Task_State"] == "running").sum()
 success_rate   = round(total_success / total_tasks * 100, 1)
 total_rows     = df["Rows_Affected_Total"].sum()
-total_problems = total_failed + total_upstream
-n_ok           = int((~dag_summary["Has_Failure"]).sum())
-n_ko           = int(dag_summary["Has_Failure"].sum())
-sante          = "Sain" if total_problems == 0 else ("Critique" if total_problems >= 10 else "Degrade")
 
 failed_dags   = dag_summary[dag_summary["failed"] > 0].sort_values("failed", ascending=False)
 upstream_dags = dag_summary[(dag_summary["upstream_failed"] > 0) & (dag_summary["failed"] == 0)]
@@ -98,7 +96,7 @@ def render_alert_row(row, kind):
     is_failed = kind == "failed"
     last_run_dt = row["Last_Run"]
     last = last_run_dt.strftime("%d/%m  %H:%M") if pd.notna(last_run_dt) else "—"
-    age  = (now - last_run_dt.replace(tzinfo=None)).days if pd.notna(last_run_dt) else 9999
+    age  = (ref_date - last_run_dt).days if pd.notna(last_run_dt) else 9999
     old  = is_failed and age > 7
 
     if old:
@@ -136,7 +134,7 @@ def render_alert_row(row, kind):
 
 # ── Sidebar ──────────────────────────────────────────────────────────────
 with st.sidebar:
-    sidebar_shell(st, active="overview", health_label=sante, n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="overview")
 
 # ── Header ───────────────────────────────────────────────────────────────
 col_hdr, col_badge = st.columns([4, 1])
@@ -144,14 +142,17 @@ with col_hdr:
     page_header(
         st,
         title="Vue d'ensemble",
-        subtitle="Supervision en temps reel de la plateforme de donnees CIH Bank.",
+        subtitle="Supervision de la plateforme de donnees CIH Bank.",
     )
 with col_badge:
+    _, fresh_color, fresh_label = data_freshness(ref_date)
     st.markdown(
         f'<div class="cih-last-run" style="margin-top:10px;">'
         f'{svg_icon("clock", 14, "#4E4B4C")}'
-        f'<div><div style="font-size:10px;color:#9AA0A8;font-weight:600;">Derniere execution</div>'
-        f'<div style="font-weight:700;color:#151213;">{last_run_str}</div></div></div>',
+        f'<div><div style="font-size:10px;color:#9AA0A8;font-weight:600;">Donnees du</div>'
+        f'<div style="font-weight:700;color:#151213;">{last_run_str}</div>'
+        f'<div style="font-size:10.5px;font-weight:700;color:{fresh_color};">{fresh_label}</div>'
+        f'</div></div>',
         unsafe_allow_html=True,
     )
 

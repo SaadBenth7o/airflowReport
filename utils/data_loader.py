@@ -7,6 +7,15 @@ from datetime import datetime
 BASE_DIR = Path(__file__).parent.parent
 XLS_PATH = BASE_DIR / "airflowhistory" / "airflow_tasks_2026_stats_V2.xls"
 
+# Perimetre annonce du rapport : toute ligne dont le dernier run est
+# anterieur a cette date est exclue (des residus 2024 dans l'export
+# faussaient completement les stats de duree — ex: une tache de 5016h).
+REPORT_PERIOD_START = pd.Timestamp("2026-01-01")
+
+# Seuil (nb de taches failed + upstream_failed) au-dela duquel la sante
+# globale passe de "Degrade" a "Critique".
+CRITICAL_PROBLEM_THRESHOLD = 10
+
 # Colonnes que le dashboard exploite reellement — un nouvel export doit au
 # minimum les contenir (memes noms, ordre libre) pour etre accepte.
 REQUIRED_COLUMNS = [
@@ -124,8 +133,8 @@ def _categorize_schedule(sched):
     return "Journalier"
 
 
-@st.cache_data
-def load_data(path=str(XLS_PATH)):
+def _read_raw(path):
+    """Lit et enrichit le classeur complet, sans filtre de periode."""
     wb = xlrd.open_workbook(path)
     ws = wb.sheet_by_index(0)
     headers = ws.row_values(0)
@@ -139,6 +148,9 @@ def load_data(path=str(XLS_PATH)):
     df["Rows_Affected_Total"] = (
         pd.to_numeric(df["Rows_Affected_Total"], errors="coerce").fillna(0).astype(int)
     )
+    # Un etat vide dans l'export (cellule non renseignee) doit rester
+    # visible dans le rapport, pas disparaitre : on le classe "unknown".
+    df["Task_State"] = df["Task_State"].astype(str).str.strip().replace({"": "unknown", "nan": "unknown"})
     df["State_Color"]        = df["Task_State"].map(STATE_COLORS).fillna("#9CA3AF")
     df["State_BG"]           = df["Task_State"].map(STATE_BG).fillna("#F9FAFB")
     df["State_FR"]           = df["Task_State"].map(STATE_FR).fillna(df["Task_State"])
@@ -146,6 +158,32 @@ def load_data(path=str(XLS_PATH)):
     df["Rows_Display"]       = df["Rows_Affected_Total"].apply(_fmt_rows)
 
     return df
+
+
+@st.cache_data
+def load_data(path=str(XLS_PATH)):
+    df = _read_raw(path)
+    # Les taches jamais executees (date absente) restent dans le perimetre ;
+    # seules les lignes datees d'avant la periode du rapport sont ecartees.
+    keep = df["Task_Last_Run_Date"].isna() | (df["Task_Last_Run_Date"] >= REPORT_PERIOD_START)
+    return df[keep].reset_index(drop=True)
+
+
+@st.cache_data
+def legacy_excluded_count(path=str(XLS_PATH)):
+    """Nb de lignes ecartees car anterieures a REPORT_PERIOD_START."""
+    df = _read_raw(path)
+    return int((df["Task_Last_Run_Date"] < REPORT_PERIOD_START).sum())
+
+
+def reference_date(df):
+    """Date des donnees : le dernier run le plus recent de l'export.
+
+    Toute notion de recence (echecs recents, badge 'Ancien'...) doit se
+    calculer par rapport a cette date, jamais a l'horloge murale — sinon
+    un export vieux de quelques jours fait croire a zero echec recent.
+    """
+    return df["Task_Last_Run_Date"].max()
 
 
 @st.cache_data
@@ -186,6 +224,25 @@ def fmt_rows(n):
     return _fmt_rows(n)
 
 
+@st.cache_data
+def compute_health(path=str(XLS_PATH)):
+    """Sante globale de la plateforme — regle unique pour toutes les pages.
+
+    Avant : chaque page recalculait son propre label avec des regles
+    differentes (voire "Sain" code en dur), et la sidebar se contredisait
+    d'une page a l'autre.
+    """
+    df      = load_data(path)
+    summary = build_dag_summary(path)
+    n_ok    = int((~summary["Has_Failure"]).sum())
+    n_ko    = int(summary["Has_Failure"].sum())
+    problems = int(df["Task_State"].isin(["failed", "upstream_failed"]).sum())
+    label = ("Sain" if problems == 0
+             else "Critique" if problems >= CRITICAL_PROBLEM_THRESHOLD
+             else "Degrade")
+    return {"label": label, "n_ok": n_ok, "n_ko": n_ko, "problems": problems}
+
+
 def _validate_upload_bytes(file_bytes):
     """Verifie que le classeur uploade contient bien les colonnes attendues
     (memes metadonnees de table que le fichier en place). Retourne
@@ -219,6 +276,8 @@ def save_uploaded_file(uploaded_file):
 
     load_data.clear()
     build_dag_summary.clear()
+    compute_health.clear()
+    legacy_excluded_count.clear()
     return True, f"Nouveau fichier applique — {message}"
 
 

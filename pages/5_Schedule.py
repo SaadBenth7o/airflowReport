@@ -14,14 +14,12 @@ apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-n_ok        = int((~dag_summary["Has_Failure"]).sum())
-n_ko        = int(dag_summary["Has_Failure"].sum())
 
 uniq   = df.drop_duplicates("DAG_ID")
 by_cat = uniq["Schedule_Category"].value_counts()
 
 with st.sidebar:
-    sidebar_shell(st, active="schedule", health_label="Sain", n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="schedule")
 
 page_header(st, "Planification",
             "Frequences et fenetres de demarrage des DAGs.")

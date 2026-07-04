@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from utils.data_loader import load_data, build_dag_summary
+from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
 from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
 
@@ -10,19 +9,19 @@ apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-now         = datetime.now()
 
 failed_df     = df[df["Task_State"] == "failed"]
 upstream_df   = df[df["Task_State"] == "upstream_failed"]
-recent_cutoff = pd.Timestamp(now - pd.Timedelta(days=7))
+# Recence calculee par rapport a la date des donnees (dernier run de
+# l'export), pas a l'horloge murale : avec un export date de quelques
+# jours, "0 echec recent" s'affichait alors que des echecs dataient du
+# jour meme de l'export.
+recent_cutoff = reference_date(df) - pd.Timedelta(days=7)
 recent_fails  = failed_df[failed_df["Task_Last_Run_Date"] >= recent_cutoff]
 old_fails     = failed_df[failed_df["Task_Last_Run_Date"] < recent_cutoff]
-n_ok          = int((~dag_summary["Has_Failure"]).sum())
-n_ko          = int(dag_summary["Has_Failure"].sum())
-sante         = "Critique" if len(failed_df) > 0 else "Sain"
 
 with st.sidebar:
-    sidebar_shell(st, active="failures", health_label=sante, n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="failures")
 
 page_header(st, "Echecs & alertes",
             "Taches en echec et dependances bloquees.")
@@ -36,8 +35,10 @@ with c2:
              sub="dependances bloquees", color="#F0481C", icon="alert")
 with c3:
     kpi_card(st, "Echecs recents", len(recent_fails),
-             sub="dans les 7 derniers jours", color="#EF4444", icon="clock")
+             sub="7 derniers jours de donnees", color="#EF4444", icon="clock")
 with c4:
+    n_ko = int(dag_summary["Has_Failure"].sum())
+    n_ok = int((~dag_summary["Has_Failure"]).sum())
     kpi_card(st, "DAGs impactes", n_ko,
              sub=f"{n_ok} sains", color="#05AEEF", icon="branch")
 

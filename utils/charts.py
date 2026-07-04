@@ -14,10 +14,10 @@ _LAYOUT = dict(
 
 _BAR_RADIUS = 7
 
-STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running"]
+STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running", "unknown"]
 STATE_LABELS_FR = {
     "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
-    "upstream_failed": "Echec amont", "running": "En cours",
+    "upstream_failed": "Echec amont", "running": "En cours", "unknown": "Inconnu",
 }
 
 

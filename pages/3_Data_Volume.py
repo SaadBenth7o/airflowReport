@@ -12,8 +12,6 @@ apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-n_ok        = int((~dag_summary["Has_Failure"]).sum())
-n_ko        = int(dag_summary["Has_Failure"].sum())
 
 total_rows      = df["Rows_Affected_Total"].sum()
 tasks_with_rows = (df["Rows_Affected_Total"] > 0).sum()
@@ -29,7 +27,7 @@ def fmt(n):
 
 
 with st.sidebar:
-    sidebar_shell(st, active="volume", health_label="Sain", n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="volume")
 
 page_header(st, "Volume de donnees",
             "Lignes traitees par tache et par pipeline depuis le 01/01/2026.")
@@ -71,7 +69,7 @@ with st.container(border=True):
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
     has_rows["Etat_FR"]  = has_rows["Task_State"].map({
         "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
-        "upstream_failed": "Upstream", "running": "En cours",
+        "upstream_failed": "Upstream", "running": "En cours", "unknown": "Inconnu",
     }).fillna(has_rows["Task_State"])
 
     dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))

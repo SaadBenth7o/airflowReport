@@ -12,8 +12,6 @@ apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-n_ok        = int((~dag_summary["Has_Failure"]).sum())
-n_ko        = int(dag_summary["Has_Failure"].sum())
 
 active  = df[(df["Duration_Seconds"] > 0) & (df["Task_State"] == "success")]
 all_dur = df[df["Duration_Seconds"] > 0]
@@ -30,7 +28,7 @@ def fmtd(minutes):
 
 
 with st.sidebar:
-    sidebar_shell(st, active="performance", health_label="Sain", n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="performance")
 
 page_header(st, "Performance",
             "Durees d'execution et goulots d'etranglement.")

@@ -12,9 +12,6 @@ apply_theme(st)
 
 df          = load_data()
 dag_summary = build_dag_summary()
-n_ok        = int((~dag_summary["Has_Failure"]).sum())
-n_ko        = int(dag_summary["Has_Failure"].sum())
-sante       = "Sain" if n_ko == 0 else ("Critique" if n_ko > 5 else "Degrade")
 
 
 def fmt(n):
@@ -25,7 +22,7 @@ def fmt(n):
 
 
 with st.sidebar:
-    sidebar_shell(st, active="explorer", health_label=sante, n_ok=n_ok, n_ko=n_ko)
+    sidebar_shell(st, active="explorer")
 
 page_header(st, "DAG Explorer",
             "Exploration detaillee de chaque pipeline de donnees.")

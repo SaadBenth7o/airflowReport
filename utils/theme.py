@@ -4,9 +4,15 @@ Icônes Lucide-style (SVG inline, identiques au mockup React validé).
 """
 
 import base64
+from datetime import datetime
 from pathlib import Path
 
-from utils.data_loader import render_data_uploader
+import pandas as pd
+
+from utils.data_loader import (
+    render_data_uploader, compute_health, load_data,
+    legacy_excluded_count, reference_date, REPORT_PERIOD_START,
+)
 
 _LOGO_PATH = Path(__file__).parent.parent / "assets" / "cih-logo.png"
 
@@ -161,13 +167,34 @@ def page_header(st, title, subtitle="", crumb=None):
     )
 
 
-def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
+def data_freshness(data_date):
+    """(age_jours, couleur, libelle) de la fraicheur des donnees, par
+    rapport a l'horloge murale — pour un rapport quotidien, un export de
+    plus d'un jour merite un signal visuel."""
+    if pd.isna(data_date):
+        return None, CIH["muted"], "date inconnue"
+    age = max(0, (datetime.now() - data_date.to_pydatetime()).days)
+    if age <= 1:
+        return age, CIH["green_dk"], ("aujourd'hui" if age == 0 else "il y a 1 j")
+    color = CIH["amber"] if age <= 3 else CIH["red_dk"]
+    return age, color, f"il y a {age} j"
+
+
+def sidebar_shell(st, active):
     """
     Rend la sidebar complete : logo CIH, navigation (icones SVG + libelles
     identiques au mockup), widget sante en bas. `active` = id de page
     (voir NAV_ITEMS : 'overview' | 'failures' | 'explorer' | 'volume' |
     'performance' | 'schedule').
+
+    La sante globale et la fraicheur des donnees sont calculees ici, via
+    compute_health() — regle unique, aucune page ne peut afficher un label
+    incoherent avec les autres.
     """
+    health = compute_health()
+    health_label, n_ok, n_ko = health["label"], health["n_ok"], health["n_ko"]
+    data_date = reference_date(load_data())
+    n_legacy  = legacy_excluded_count()
     logo_html = (
         f'<img src="data:image/png;base64,{_LOGO_B64}" alt="CIH Bank" class="cih-brand-logo-img"/>'
         if _LOGO_B64 else
@@ -196,6 +223,16 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
           else CIH["red"] if health_label == "Critique"
           else CIH["amber"])
     n_ko_color = CIH["red_dk"] if n_ko > 0 else CIH["ink"]
+
+    _, fresh_color, fresh_label = data_freshness(data_date)
+    date_str = data_date.strftime("%d/%m %H:%M") if pd.notna(data_date) else "—"
+    legacy_html = ""
+    if n_legacy:
+        legacy_html = (
+            f'<div style="font-size:10.5px;color:{CIH["muted"]};margin-top:4px;">'
+            f'{n_legacy} tache(s) anterieure(s) au '
+            f'{REPORT_PERIOD_START.strftime("%d/%m/%Y")} exclue(s)</div>'
+        )
     st.sidebar.markdown(
         f'<div class="cih-health-widget">'
         f'<div class="cih-health-row">'
@@ -213,6 +250,13 @@ def sidebar_shell(st, active, health_label="Sain", n_ok=0, n_ko=0):
         f'<div style="font-size:10.5px;color:{CIH["ink2"]};">degrades</div>'
         f'</div>'
         f'</div>'
+        f'<div style="margin-top:11px;padding-top:9px;border-top:1px solid {CIH["border"]};'
+        f'display:flex;align-items:center;gap:7px;">'
+        f'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:{fresh_color};"></span>'
+        f'<span style="font-size:11px;color:{CIH["ink2"]};">Donnees du <b>{date_str}</b>'
+        f' &middot; <span style="color:{fresh_color};font-weight:700;">{fresh_label}</span></span>'
+        f'</div>'
+        f'{legacy_html}'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -281,11 +325,12 @@ def status_pill(state):
 # colonne contient le code brut (Task_State) ou le libelle FR deja mappe.
 STATE_RAW_COLOR = {
     "success": CIH["green"], "failed": CIH["red"], "skipped": CIH["amber"],
-    "upstream_failed": CIH["orange"], "running": CIH["blue"],
+    "upstream_failed": CIH["orange"], "running": CIH["blue"], "unknown": CIH["muted"],
 }
 STATE_FR_COLOR = {
     "Succes": CIH["green"], "Echec": CIH["red"], "Ignoree": CIH["amber"],
     "Upstream": CIH["orange"], "Echec amont": CIH["orange"], "En cours": CIH["blue"],
+    "Inconnu": CIH["muted"],
 }
 
 
