@@ -17,9 +17,11 @@ _BAR_RADIUS = 7
 
 STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running", "unknown"]
 STATE_LABELS_FR = {
-    "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
-    "upstream_failed": "Echec amont", "running": "En cours", "unknown": "Inconnu",
+    "success": "Succès", "failed": "Échec", "skipped": "Ignorée",
+    "upstream_failed": "Échec amont", "running": "En cours", "unknown": "Inconnu",
 }
+# Libelle FR -> couleur, pour les graphiques dont la legende affiche l'etat.
+STATE_FR_COLORS = {STATE_LABELS_FR[k]: STATE_COLORS[k] for k in STATE_LABELS_FR}
 
 
 def _apply(fig, height=360):
@@ -111,11 +113,11 @@ def failures_timeline(df):
     fig = px.scatter(
         target,
         x="Task_Last_Run_Date", y="DAG_ID",
-        color="Task_State",
-        color_discrete_map=STATE_COLORS,
-        symbol="Task_State",
+        color="Label",
+        color_discrete_map=STATE_FR_COLORS,
+        symbol="Label",
         hover_data={"Task_ID": True, "Bash_Script_Name": True, "Task_Last_Run_Date": True},
-        labels={"Task_Last_Run_Date": "Date du dernier run", "DAG_ID": ""},
+        labels={"Task_Last_Run_Date": "Date du dernier run", "DAG_ID": "", "Label": "État"},
     )
     fig.update_traces(marker_size=13)
     fig.update_layout(**_LAYOUT, height=max(320, n_dags * 38 + 60),
@@ -127,12 +129,12 @@ def failures_timeline(df):
 
 def dag_task_composition(df, dag_id):
     dag_df = df[df["DAG_ID"] == dag_id]
-    counts = dag_df["Task_State"].value_counts().reset_index()
+    counts = dag_df["State_FR"].value_counts().reset_index()
     counts.columns = ["État", "Nombre"]
 
     fig = px.bar(
         counts, x="État", y="Nombre",
-        color="État", color_discrete_map=STATE_COLORS,
+        color="État", color_discrete_map=STATE_FR_COLORS,
         labels={"État": "", "Nombre": "Nb tâches"},
     )
     fig.update_layout(**_LAYOUT, height=260, showlegend=False)
@@ -190,8 +192,13 @@ def rows_treemap(dag_summary):
         color_continuous_scale=[[0, "#E0F2FE"], [1, CIH_BLUE]],
         hover_data={"Total_Rows": ":,"},
     )
+    # Le plotly.js embarque par Streamlit ignore root.color : la tuile
+    # racine implicite reste gris fonce (#444) et transparait dans les
+    # interstices. pad=0 la recouvre entierement ; la separation entre
+    # tuiles est assuree par des bordures blanches.
     fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,} lignes<extra></extra>",
-                       marker=dict(cornerradius=6))
+                       marker=dict(cornerradius=6, line=dict(color="white", width=2)),
+                       tiling=dict(pad=0))
     fig.update_coloraxes(showscale=False)
     return _apply(fig, 380)
 
@@ -228,9 +235,9 @@ def slowest_tasks_bar(df, top_n=15):
 
     fig = px.bar(
         src, x="Duration_Minutes", y="Label", orientation="h",
-        color="Task_State", color_discrete_map=STATE_COLORS,
+        color="State_FR", color_discrete_map=STATE_FR_COLORS,
         hover_data={"DAG_ID": True, "Task_ID": True, "Duration_Display": True},
-        labels={"Duration_Minutes": "Durée (min)", "Label": "", "Task_State": "État"},
+        labels={"Duration_Minutes": "Durée (min)", "Label": "", "State_FR": "État"},
     )
     fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>Durée : %{customdata[2]}<extra></extra>")
     fig.update_yaxes(autorange="reversed")

@@ -55,6 +55,16 @@ st.markdown("""
     text-decoration:none; transition:background .12s, border-color .12s;
 }
 .cih-alert-go:hover { background:#F5F8FC; border-color:#d8dce4; }
+/* lien "voir tout" sous une liste d'alertes tronquee */
+a.cih-seeall, a.cih-seeall:visited {
+    display:inline-flex; align-items:center; gap:6px;
+    margin-top:4px; padding:8px 12px; border-radius:10px;
+    border:1px solid #E9E8E8; background:#FFFFFF;
+    font-size:12.5px; font-weight:700; color:#4E4B4C !important;
+    text-decoration:none !important;
+    transition:background .12s, border-color .12s;
+}
+a.cih-seeall:hover { background:#F5F8FC; border-color:#d8dce4; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,8 +204,9 @@ with col_l:
             donut_legend(st, state_distribution_segments(df))
 with col_r:
     with st.container(border=True):
-        section_title(st, "DAGs avec le plus d'echecs", color="#EF4444",
-                      right=f"{len(failed_dags)} DAG(s) concernes")
+        badge = (f"top 10 &middot; {len(failed_dags)} DAG(s) concernes"
+                 if len(failed_dags) > 10 else f"{len(failed_dags)} DAG(s) concernes")
+        section_title(st, "DAGs avec le plus d'echecs", color="#EF4444", right=badge)
         if failed_dags.empty:
             st.success("Aucun DAG en echec.")
         else:
@@ -206,27 +217,48 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ── Alertes ──────────────────────────────────────────────────────────────
 section_title(st, "Alertes actives", color="#EF4444")
 
+# La vue d'ensemble reste un resume : au-dela de MAX_ALERT_ROWS lignes,
+# la liste est tronquee et un lien renvoie vers Echecs & alertes (qui,
+# elle, est exhaustive).
+MAX_ALERT_ROWS = 8
+
+
+def render_alert_card(rows_df, kind, title, color):
+    with st.container(border=True):
+        section_title(st, title, color=color)
+        shown = rows_df.head(MAX_ALERT_ROWS)
+        st.markdown(
+            "".join(render_alert_row(row, kind) for _, row in shown.iterrows()),
+            unsafe_allow_html=True,
+        )
+        if len(rows_df) > MAX_ALERT_ROWS:
+            st.markdown(
+                f'<a class="cih-seeall" href="Failures" target="_self">'
+                f'Voir les {len(rows_df)} DAGs dans Echecs &amp; alertes'
+                f'{svg_icon("chevron", 14, "#4E4B4C")}</a>',
+                unsafe_allow_html=True,
+            )
+
+
 if failed_dags.empty and upstream_dags.empty:
     st.success("Aucune alerte — tous les DAGs fonctionnent normalement.")
-else:
+elif not failed_dags.empty and not upstream_dags.empty:
     col_a, col_b = st.columns([2, 1], gap="medium")
     with col_a:
-        with st.container(border=True):
-            section_title(st, f"{len(failed_dags)} DAG(s) avec des taches en echec", color="#EF4444")
-            if failed_dags.empty:
-                st.caption("Aucune tache en echec.")
-            else:
-                st.markdown(
-                    "".join(render_alert_row(row, "failed") for _, row in failed_dags.iterrows()),
-                    unsafe_allow_html=True,
-                )
+        render_alert_card(failed_dags, "failed",
+                          f"{len(failed_dags)} DAG(s) avec des taches en echec", "#EF4444")
     with col_b:
-        with st.container(border=True):
-            section_title(st, f"{len(upstream_dags)} DAG(s) avec dependances bloquees", color="#F0481C")
-            if upstream_dags.empty:
-                st.caption("Aucune dependance bloquee.")
-            else:
-                st.markdown(
-                    "".join(render_alert_row(row, "upstream") for _, row in upstream_dags.iterrows()),
-                    unsafe_allow_html=True,
-                )
+        render_alert_card(upstream_dags, "upstream",
+                          f"{len(upstream_dags)} DAG(s) avec dependances bloquees", "#F0481C")
+else:
+    # Une seule categorie concernee : sa carte prend toute la largeur au
+    # lieu de laisser un tiers d'ecran vide, et l'autre est resumee en
+    # une ligne.
+    if not failed_dags.empty:
+        render_alert_card(failed_dags, "failed",
+                          f"{len(failed_dags)} DAG(s) avec des taches en echec", "#EF4444")
+        st.caption("Aucune dependance bloquee.")
+    else:
+        render_alert_card(upstream_dags, "upstream",
+                          f"{len(upstream_dags)} DAG(s) avec dependances bloquees", "#F0481C")
+        st.caption("Aucune tache en echec.")

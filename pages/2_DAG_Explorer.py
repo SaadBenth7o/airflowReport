@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import dag_task_composition, success_rate_gauge
 from utils.theme import (
     apply_theme, section_title, sidebar_shell, page_header, svg_icon,
-    styled_column, STATE_RAW_COLOR,
+    styled_column, STATE_FR_COLOR,
 )
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon=None, layout="wide")
@@ -82,9 +82,16 @@ with col_list:
                        "blue" if d["running"] > 0 else "green")
                 rate_c = ("green" if d["Success_Rate"] >= 80 else
                           "orange" if d["Success_Rate"] >= 50 else "red")
-                label = (f":{dot}[●] **{dag_id}**  \n"
-                         f"{int(d['Total_Tasks'])} taches &middot; {d['Schedule_Category']} &middot; "
-                         f":{rate_c}[{d['Success_Rate']:.0f}%]")
+                meta = (f"{int(d['Total_Tasks'])} taches &middot; "
+                        f"{d['Schedule_Category']} &middot; ")
+                if selected:
+                    # Bouton primaire = fond orange, texte blanc : les
+                    # directives :couleur[...] y sont illisibles (rouge sur
+                    # orange) — texte brut uniquement.
+                    label = f"● **{dag_id}**  \n{meta}{d['Success_Rate']:.0f}%"
+                else:
+                    label = (f":{dot}[●] **{dag_id}**  \n"
+                             f"{meta}:{rate_c}[{d['Success_Rate']:.0f}%]")
                 if st.button(label, key=f"dagbtn_{dag_id}", use_container_width=True,
                              type="primary" if selected else "secondary"):
                     st.session_state["dag_explorer_sel"] = dag_id
@@ -148,7 +155,7 @@ with col_detail:
         section_title(st, "Taches du DAG", color="#F0481C", right=f"{len(dag_df)} taches")
         task_display = dag_df[[
             "Task_ID", "Operator_Type", "Bash_Script_Name",
-            "Task_State", "Task_Last_Run_Date", "Duration_Display", "Rows_Affected_Total"
+            "State_FR", "Task_Last_Run_Date", "Duration_Display", "Rows_Affected_Total"
         ]].copy()
         task_display["Task_Last_Run_Date"] = task_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(
@@ -156,7 +163,7 @@ with col_detail:
         )
         task_display.columns = ["Tache", "Operateur", "Script", "Etat", "Dernier run", "Duree", "Lignes"]
         st.dataframe(
-            styled_column(task_display, "Etat", STATE_RAW_COLOR), use_container_width=True,
+            styled_column(task_display, "Etat", STATE_FR_COLOR), use_container_width=True,
             height=min(500, 38 * len(task_display) + 40),
             column_config={
                 "Tache":       st.column_config.TextColumn("Tache", width="medium"),

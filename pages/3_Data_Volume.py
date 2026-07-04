@@ -67,16 +67,12 @@ with st.container(border=True):
 
     has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
-    has_rows["Etat_FR"]  = has_rows["Task_State"].map({
-        "success": "Succes", "failed": "Echec", "skipped": "Ignoree",
-        "upstream_failed": "Upstream", "running": "En cours", "unknown": "Inconnu",
-    }).fillna(has_rows["Task_State"])
 
     dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
     if dag_filter:
         has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
 
-    display = has_rows[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "Etat_FR", "Task_Last_Run_Date"]].copy()
+    display = has_rows[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy()
     display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
     display.columns = ["DAG", "Tache", "Script", "Lignes traitees", "Etat", "Dernier run"]
 

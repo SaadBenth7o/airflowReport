@@ -6,7 +6,7 @@ from utils.data_loader import (
 from utils.charts import failures_timeline
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_RAW_COLOR,
+    styled_column, STATE_FR_COLOR,
 )
 
 st.set_page_config(page_title="Echecs & alertes · Airflow", page_icon=None, layout="wide")
@@ -65,13 +65,13 @@ if not zombies.empty:
             "ces DAGs sont toujours actifs cote Airflow mais ne tournent plus "
             "(ou trainent des executions aberrantes) — candidats a la desactivation."
         )
-        z = zombies[["DAG_ID", "Task_ID", "Task_State",
+        z = zombies[["DAG_ID", "Task_ID", "State_FR",
                      "Task_Last_Run_Date", "Duration_Display"]].copy()
         z = z.sort_values("Task_Last_Run_Date")
         z["Task_Last_Run_Date"] = z["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         z.columns = ["DAG", "Tache", "Etat", "Dernier run", "Duree"]
         st.dataframe(
-            styled_column(z, "Etat", STATE_RAW_COLOR),
+            styled_column(z, "Etat", STATE_FR_COLOR),
             use_container_width=True, hide_index=True,
             height=38 * len(z) + 40,
             column_config={

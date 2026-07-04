@@ -12,6 +12,7 @@ import pandas as pd
 from utils.data_loader import (
     render_data_uploader, compute_health, load_data,
     out_of_period_count, reference_date, REPORT_PERIOD_START,
+    STATE_COLORS as _STATE_COLORS, STATE_FR as _STATE_FR_LABELS,
 )
 
 _LOGO_PATH = Path(__file__).parent.parent / "assets" / "cih-logo.png"
@@ -322,16 +323,11 @@ def status_pill(state):
 
 
 # Couleur du texte d'etat dans les tableaux — deux variantes selon que la
-# colonne contient le code brut (Task_State) ou le libelle FR deja mappe.
-STATE_RAW_COLOR = {
-    "success": CIH["green"], "failed": CIH["red"], "skipped": CIH["amber"],
-    "upstream_failed": CIH["orange"], "running": CIH["blue"], "unknown": CIH["muted"],
-}
-STATE_FR_COLOR = {
-    "Succes": CIH["green"], "Echec": CIH["red"], "Ignoree": CIH["amber"],
-    "Upstream": CIH["orange"], "Echec amont": CIH["orange"], "En cours": CIH["blue"],
-    "Inconnu": CIH["muted"],
-}
+# colonne contient le code brut (Task_State) ou le libelle FR (State_FR).
+# Derivees des maps canoniques du data_loader : une seule source de verite
+# pour les libelles ET les couleurs.
+STATE_RAW_COLOR = dict(_STATE_COLORS)
+STATE_FR_COLOR  = {_STATE_FR_LABELS[k]: _STATE_COLORS[k] for k in _STATE_FR_LABELS}
 
 
 def styled_column(df, column, color_map):
@@ -634,6 +630,14 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 /* ── tableaux ── */
 [data-testid="stDataFrame"] {{
     border: 1px solid {CIH['border']}; border-radius: 14px; overflow: hidden;
+}}
+
+/* ── treemap plotly ── */
+/* La tuile racine implicite reste gris fonce (#444) : le plotly.js
+   embarque par Streamlit ignore root.color. On la repeint en blanc —
+   c'est toujours le premier slice du trace treemap. */
+.trace.treemap > g.slice:first-child > path.surface {{
+    fill: #FFFFFF !important;
 }}
 
 /* ── champs de saisie ── */
