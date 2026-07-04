@@ -244,19 +244,37 @@ def slowest_tasks_bar(df, top_n=15):
     return _round_bars(_apply(fig, 480))
 
 
-def duration_by_operator(df):
-    src = df[df["Duration_Minutes"] > 0].copy()
-    fig = px.box(
-        src, x="Operator_Type", y="Duration_Minutes",
-        color="Operator_Type",
-        color_discrete_sequence=[CIH_ORANGE, CIH_BLUE, "#22C55E", "#8B5CF6"],
-        labels={"Operator_Type": "Opérateur", "Duration_Minutes": "Durée (min, échelle log)"},
-        points="outliers",
-        log_y=True,  # les anomalies (durees extremes) ecrasaient la boite en lineaire
+def duration_by_dag(df, top_n=15):
+    """Duree cumulee par DAG : quels pipelines consomment le plus de temps
+    machine. Remplace l'ancien box plot par operateur, sans interet ici :
+    toutes les taches avec duree mesuree sont des BashOperator (une seule
+    categorie a comparer = aucun insight)."""
+    src = df[df["Duration_Seconds"] > 0]
+    agg = (
+        src.groupby("DAG_ID")
+        .agg(Total_Min=("Duration_Minutes", "sum"), Nb=("Task_ID", "count"))
+        .nlargest(top_n, "Total_Min")
+        .reset_index()
     )
-    fig.update_layout(**_LAYOUT, height=320, showlegend=False,
-                      yaxis=dict(gridcolor=CIH_BORDER))
-    return fig
+
+    def fmt_min(m):
+        h, mn = int(m // 60), int(m % 60)
+        return f"{h}h {mn:02d}m" if h else f"{mn}m"
+
+    agg["Duree_fmt"] = agg["Total_Min"].apply(fmt_min)
+    agg["Label"] = agg["DAG_ID"].apply(lambda x: x if len(x) <= 28 else x[:26] + "…")
+
+    fig = px.bar(
+        agg, x="Total_Min", y="Label", orientation="h",
+        color_discrete_sequence=[CIH_BLUE],
+        custom_data=["DAG_ID", "Duree_fmt", "Nb"],
+        labels={"Total_Min": "Durée cumulée (min)", "Label": ""},
+    )
+    fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>"
+                                    "%{customdata[1]} cumulées<br>"
+                                    "%{customdata[2]} tâche(s) mesurée(s)<extra></extra>")
+    fig.update_yaxes(autorange="reversed")
+    return _round_bars(_apply(fig, 480))
 
 
 # ---------- Schedule ----------

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
-from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_operator
+from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_dag
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
     styled_column, STATE_FR_COLOR,
@@ -64,8 +64,9 @@ with col_l:
         st.plotly_chart(slowest_tasks_bar(df, top_n=top_n), use_container_width=True)
 with col_r:
     with st.container(border=True):
-        section_title(st, "Duree par operateur", color="#05AEEF")
-        st.plotly_chart(duration_by_operator(df), use_container_width=True)
+        section_title(st, "DAGs les plus consommateurs", color="#05AEEF",
+                      right="duree cumulee · top 15")
+        st.plotly_chart(duration_by_dag(df), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
