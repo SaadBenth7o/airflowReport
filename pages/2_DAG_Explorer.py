@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import dag_task_composition, success_rate_gauge
+from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, section_title, sidebar_shell, page_header, svg_icon,
     styled_column, STATE_FR_COLOR,
@@ -25,7 +26,7 @@ with st.sidebar:
     sidebar_shell(st, active="explorer")
 
 page_header(st, "DAG Explorer",
-            "Exploration detaillee de chaque pipeline de donnees.")
+            "Exploration détaillée de chaque pipeline de données.")
 
 # ── Filtres ──────────────────────────────────────────────────────────────
 with st.container(border=True):
@@ -34,10 +35,10 @@ with st.container(border=True):
         search = st.text_input("Rechercher un DAG", placeholder="Nom du DAG…")
     with col_f2:
         sched_options = ["Tous"] + sorted(dag_summary["Schedule_Category"].unique())
-        sched_filter  = st.selectbox("Frequence", sched_options)
+        sched_filter  = st.selectbox("Fréquence", sched_options)
     with col_f3:
-        sort_map   = {"Echecs": "failed", "Taux de succes": "Success_Rate",
-                      "Volume": "Total_Rows", "Taches": "Total_Tasks", "Nom": "DAG_ID"}
+        sort_map   = {"Échecs": "failed", "Taux de succès": "Success_Rate",
+                      "Volume": "Total_Rows", "Tâches": "Total_Tasks", "Nom": "DAG_ID"}
         sort_label = st.selectbox("Trier par", list(sort_map.keys()))
         sort_by    = sort_map[sort_label]
 
@@ -64,16 +65,25 @@ elif "dag_explorer_sel" not in st.session_state or \
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── Master (liste) / Detail ─────────────────────────────────────────────
+sel_id  = st.session_state["dag_explorer_sel"]
+dag_row = dag_summary[dag_summary["DAG_ID"] == sel_id].iloc[0]
+dag_df  = df[df["DAG_ID"] == sel_id]
+
+# ── Master (liste) / Detail — puis tableau des taches en pleine largeur ──
+# La liste est dimensionnee pour se terminer au meme niveau que la rangee
+# Composition / Fiabilite ; le tableau "Taches du DAG" occupe ensuite
+# toute la largeur de la page au lieu d'etre coince sous le detail.
+LIST_HEIGHT = 430
+
 col_list, col_detail = st.columns([1, 2.3], gap="medium")
 
 with col_list:
     with st.container(border=True):
         section_title(st, "DAGs", right=f"{len(list_view)} / {len(dag_summary)}")
         st.markdown('<div class="cih-daglist">', unsafe_allow_html=True)
-        with st.container(height=560):
+        with st.container(height=LIST_HEIGHT):
             if list_view.empty:
-                st.caption("Aucun DAG ne correspond a ces filtres.")
+                st.caption("Aucun DAG ne correspond à ces filtres.")
             for _, d in list_view.iterrows():
                 dag_id   = d["DAG_ID"]
                 selected = dag_id == st.session_state["dag_explorer_sel"]
@@ -82,7 +92,7 @@ with col_list:
                        "blue" if d["running"] > 0 else "green")
                 rate_c = ("green" if d["Success_Rate"] >= 80 else
                           "orange" if d["Success_Rate"] >= 50 else "red")
-                meta = (f"{int(d['Total_Tasks'])} taches &middot; "
+                meta = (f"{int(d['Total_Tasks'])} tâches &middot; "
                         f"{d['Schedule_Category']} &middot; ")
                 if selected:
                     # Bouton primaire = fond orange, texte blanc : les
@@ -99,10 +109,6 @@ with col_list:
         st.markdown('</div>', unsafe_allow_html=True)
 
 with col_detail:
-    sel_id  = st.session_state["dag_explorer_sel"]
-    dag_row = dag_summary[dag_summary["DAG_ID"] == sel_id].iloc[0]
-    dag_df  = df[df["DAG_ID"] == sel_id]
-
     with st.container(border=True):
         col_h1, col_h2 = st.columns([2.2, 1])
         with col_h1:
@@ -113,6 +119,9 @@ with col_detail:
             )
             owner_icon    = svg_icon("user", 14, "#9AA0A8")
             calendar_icon = svg_icon("calendar", 14, "#9AA0A8")
+            # La planification est affichee en clair (convertie depuis le
+            # cron) ; l'expression brute reste accessible au survol.
+            sched_txt = describe_cron(dag_row["Schedule_Cron"])
             st.markdown(
                 f'<div style="display:flex;gap:16px;margin-top:8px;margin-right:4px;'
                 f'margin-bottom:10px;flex-wrap:wrap;max-width:100%;font-size:12.5px;color:#4E4B4C;">'
@@ -120,65 +129,50 @@ with col_detail:
                 f'{owner_icon}{dag_row["Owner"]}</span>'
                 f'<span style="display:flex;align-items:center;gap:6px;white-space:nowrap;">'
                 f'{calendar_icon}{dag_row["Schedule_Category"]}</span>'
-                f'<span style="font-family:ui-monospace,Menlo,monospace;background:#F5F8FC;'
+                f'<span title="{dag_row["Schedule_Cron"]}" style="background:#F5F8FC;'
                 f'border:1px solid #E9E8E8;border-radius:6px;padding:2px 8px;color:#151213;'
                 f'white-space:nowrap;">'
-                f'{dag_row["Schedule_Cron"]}</span>'
+                f'{sched_txt}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
         with col_h2:
-            # 0 ligne ne veut pas dire "rien traite" : les scripts PySpark
-            # ne remontent pas leurs comptages (seuls les traitements SQL
-            # le font) — on affiche "Inconnu" plutot qu'un zero trompeur.
-            if dag_row["Total_Rows"] > 0:
-                rows_html = (f'<div style="font-size:22px;font-weight:800;color:#F0481C;'
-                             f'font-variant-numeric:tabular-nums;">{fmt(dag_row["Total_Rows"])}</div>')
-            else:
-                rows_html = '<div style="font-size:16px;font-weight:700;color:#9AA0A8;">Inconnu</div>'
             st.markdown(
                 f'<div style="text-align:right;">'
-                f'<div style="font-size:11px;color:#9AA0A8;font-weight:600;">Lignes traitees</div>'
-                f'{rows_html}'
+                f'<div style="font-size:11px;color:#9AA0A8;font-weight:600;">Lignes traitées</div>'
+                f'<div style="font-size:22px;font-weight:800;color:#F0481C;'
+                f'font-variant-numeric:tabular-nums;">{fmt(dag_row["Total_Rows"])}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # Hauteurs 320 : les bas de Composition et Fiabilite s'alignent sur le
+    # bas de la carte DAGs (liste de gauche) — valeurs mesurees en reel.
     col_comp, col_gauge = st.columns([1.3, 1], gap="medium")
     with col_comp:
         with st.container(border=True):
-            section_title(st, "Composition des taches", color="#05AEEF")
-            st.plotly_chart(dag_task_composition(df, sel_id), use_container_width=True)
+            section_title(st, "Composition des tâches", color="#05AEEF")
+            st.plotly_chart(dag_task_composition(df, sel_id, height=320), use_container_width=True)
     with col_gauge:
         with st.container(border=True):
-            section_title(st, "Fiabilite", color="#22C55E")
-            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"]), use_container_width=True)
+            section_title(st, "Fiabilité", color="#22C55E")
+            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"], height=320), use_container_width=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
-    with st.container(border=True):
-        section_title(st, "Taches du DAG", color="#F0481C", right=f"{len(dag_df)} taches")
-        task_display = dag_df[[
-            "Task_ID", "Operator_Type", "Bash_Script_Name",
-            "State_FR", "Task_Last_Run_Date", "Duration_Display", "Rows_Affected_Total"
-        ]].copy()
-        task_display["Task_Last_Run_Date"] = task_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
-        task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(
-            lambda n: f"{int(n):,}" if n > 0 else "Inconnu"
-        )
-        task_display.columns = ["Tache", "Operateur", "Script", "Etat", "Dernier run", "Duree", "Lignes"]
-        st.dataframe(
-            styled_column(task_display, "Etat", STATE_FR_COLOR), use_container_width=True,
-            height=min(500, 38 * len(task_display) + 40),
-            column_config={
-                "Tache":       st.column_config.TextColumn("Tache", width="medium"),
-                "Operateur":   st.column_config.TextColumn("Operateur", width="small"),
-                "Script":      st.column_config.TextColumn("Script", width="medium"),
-                "Dernier run": st.column_config.TextColumn("Dernier run", width="small"),
-                "Duree":       st.column_config.TextColumn("Duree", width="small"),
-                "Lignes":      st.column_config.TextColumn("Lignes", width="small"),
-            },
-            hide_index=True,
-        )
+with st.container(border=True):
+    section_title(st, "Tâches du DAG", color="#F0481C", right=f"{sel_id} &middot; {len(dag_df)} tâches")
+    task_display = dag_df[[
+        "Task_ID", "Operator_Type", "Bash_Script_Name",
+        "State_FR", "Task_Last_Run_Date", "Duration_Display", "Rows_Affected_Total"
+    ]].copy()
+    task_display["Task_Last_Run_Date"] = task_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
+    task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
+    task_display.columns = ["Tâche", "Opérateur", "Script", "État", "Dernier run", "Durée", "Lignes"]
+    st.dataframe(
+        styled_column(task_display, "État", STATE_FR_COLOR), use_container_width=True,
+        height=min(500, 38 * len(task_display) + 40),
+        hide_index=True,
+    )

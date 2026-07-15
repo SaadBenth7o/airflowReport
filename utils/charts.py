@@ -15,10 +15,11 @@ _LAYOUT = dict(
 
 _BAR_RADIUS = 7
 
-STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running", "unknown"]
+STATE_ORDER = ["success", "failed", "skipped", "upstream_failed", "running", "never_run", "unknown"]
 STATE_LABELS_FR = {
     "success": "Succès", "failed": "Échec", "skipped": "Ignorée",
-    "upstream_failed": "Échec amont", "running": "En cours", "unknown": "Inconnu",
+    "upstream_failed": "Échec amont", "running": "En cours",
+    "never_run": "Jamais exécutée", "unknown": "Inconnu",
 }
 # Libelle FR -> couleur, pour les graphiques dont la legende affiche l'etat.
 STATE_FR_COLORS = {STATE_LABELS_FR[k]: STATE_COLORS[k] for k in STATE_LABELS_FR}
@@ -72,14 +73,14 @@ def state_distribution_segments(df):
     ]
 
 
-def state_donut(df):
+def state_donut(df, height=260):
     segs = [s for s in state_distribution_segments(df) if s["value"] > 0]
     total = sum(s["value"] for s in segs)
     return _donut(
         labels=[s["label"] for s in segs],
         values=[s["value"] for s in segs],
         colors=[s["color"] for s in segs],
-        center_top=total, center_bottom="taches",
+        center_top=total, center_bottom="tâches", height=height,
     )
 
 
@@ -106,20 +107,36 @@ def dag_failures_bar(dag_summary, top_n=10):
 # ---------- Failures ----------
 
 def failures_timeline(df):
+    """Un point = un run (DAG + horodatage + etat), PAS une tache : quand
+    plusieurs taches du meme DAG echouent au meme run, leurs points se
+    superposaient et le survol ne montrait qu'un Task_ID arbitraire —
+    trompeur. Le tooltip donne desormais le nombre de taches concernees
+    (le DAG, lui, se lit deja sur l'axe Y)."""
     target = df[df["Task_State"].isin(["failed", "upstream_failed"])].dropna(subset=["Task_Last_Run_Date"]).copy()
     target["Label"] = target["Task_State"].map({"failed": "Échec", "upstream_failed": "Échec amont"})
 
-    n_dags = target["DAG_ID"].nunique()
+    grouped = (
+        target.groupby(["DAG_ID", "Task_Last_Run_Date", "Label"])
+        .size()
+        .reset_index(name="Nb")
+    )
+
+    n_dags = grouped["DAG_ID"].nunique()
     fig = px.scatter(
-        target,
+        grouped,
         x="Task_Last_Run_Date", y="DAG_ID",
         color="Label",
         color_discrete_map=STATE_FR_COLORS,
         symbol="Label",
-        hover_data={"Task_ID": True, "Bash_Script_Name": True, "Task_Last_Run_Date": True},
+        size="Nb", size_max=22,
+        custom_data=["Nb", "Label"],
         labels={"Task_Last_Run_Date": "Date du dernier run", "DAG_ID": "", "Label": "État"},
     )
-    fig.update_traces(marker_size=13)
+    fig.update_traces(
+        hovertemplate="%{x|%d/%m/%Y %H:%M}<br>"
+                      "<b>%{customdata[0]} tâche(s)</b> · %{customdata[1]}<extra></extra>",
+        marker=dict(sizemin=9),
+    )
     fig.update_layout(**_LAYOUT, height=max(320, n_dags * 38 + 60),
                       legend=dict(title="État", orientation="v"))
     return fig
@@ -127,7 +144,7 @@ def failures_timeline(df):
 
 # ---------- DAG Explorer ----------
 
-def dag_task_composition(df, dag_id):
+def dag_task_composition(df, dag_id, height=260):
     dag_df = df[df["DAG_ID"] == dag_id]
     counts = dag_df["State_FR"].value_counts().reset_index()
     counts.columns = ["État", "Nombre"]
@@ -137,11 +154,11 @@ def dag_task_composition(df, dag_id):
         color="État", color_discrete_map=STATE_FR_COLORS,
         labels={"État": "", "Nombre": "Nb tâches"},
     )
-    fig.update_layout(**_LAYOUT, height=260, showlegend=False)
+    fig.update_layout(**_LAYOUT, height=height, showlegend=False)
     return _round_bars(fig)
 
 
-def success_rate_gauge(rate):
+def success_rate_gauge(rate, height=230):
     color = "#22C55E" if rate >= 80 else CIH_ORANGE if rate >= 50 else "#EF4444"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
@@ -160,29 +177,41 @@ def success_rate_gauge(rate):
         },
         title={"text": "Taux de succès", "font": {"size": 13}},
     ))
-    fig.update_layout(**_LAYOUT, height=230)
+    fig.update_layout(**_LAYOUT, height=height)
     return fig
 
 
 # ---------- Data Volume ----------
 
-def rows_bar(df, top_n=20):
+def tasks_treemap(df, top_n=20):
+    """Top des taches par volume, en surfaces proportionnelles (meme
+    lecture que la repartition par DAG) — degrade rouge du template.
+    go.Treemap plutot que px.treemap : Task_ID n'est pas unique entre
+    DAGs, il faut des ids DAG/tache pour ne pas fusionner les homonymes."""
     src = df[df["Rows_Affected_Total"] > 0].nlargest(top_n, "Rows_Affected_Total").copy()
-    src["Label"] = src["Task_ID"].apply(lambda x: x if len(x) <= 28 else x[:26] + "…")
+    fig = go.Figure(go.Treemap(
+        ids=src["DAG_ID"] + " / " + src["Task_ID"],
+        labels=src["Task_ID"],
+        parents=[""] * len(src),
+        values=src["Rows_Affected_Total"],
+        customdata=src[["DAG_ID"]],
+        marker=dict(
+            colors=src["Rows_Affected_Total"],
+            colorscale=[[0, "#FEE2E2"], [1, "#EF4444"]],
+            cornerradius=6,
+            line=dict(color="white", width=2),
+        ),
+        tiling=dict(pad=0),
+        textinfo="label",
+        hovertemplate="<b>%{label}</b><br>DAG : %{customdata[0]}<br>%{value:,} lignes<extra></extra>",
+    ))
+    return _apply(fig, 380)
 
-    fig = px.bar(
-        src, x="Rows_Affected_Total", y="Label", orientation="h",
-        color_discrete_sequence=[CIH_BLUE],
-        hover_data={"DAG_ID": True, "Rows_Affected_Total": ":,"},
-        labels={"Rows_Affected_Total": "Lignes traitées", "Label": ""},
-    )
-    fig.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>%{y}<br>%{x:,} lignes<extra></extra>")
-    fig.update_yaxes(autorange="reversed")
-    return _round_bars(_apply(fig, 480))
 
-
-def rows_treemap(dag_summary):
+def rows_treemap(dag_summary, top_n=None):
     src = dag_summary[dag_summary["Total_Rows"] > 0].copy()
+    if top_n:
+        src = src.nlargest(top_n, "Total_Rows")
     src["Rows_Label"] = src["Total_Rows"].apply(
         lambda n: f"{n/1e9:.1f}B" if n >= 1e9 else f"{n/1e6:.0f}M" if n >= 1e6 else f"{n/1e3:.0f}K"
     )
@@ -205,23 +234,72 @@ def rows_treemap(dag_summary):
 
 # ---------- Performance ----------
 
-def duration_histogram(df):
-    # Binning en log10 : les durees s'etalent de quelques secondes a des
-    # milliers d'heures — en echelle lineaire, tout s'ecrasait dans le
-    # premier bin et les valeurs extremes devenaient invisibles.
+# Classes de duree (echelle "par classe") : bornes en minutes, libelles FR.
+DURATION_CLASSES = [
+    (0,      1,            "< 1 min"),
+    (1,      5,            "1 – 5 min"),
+    (5,      15,           "5 – 15 min"),
+    (15,     30,           "15 – 30 min"),
+    (30,     60,           "30 – 60 min"),
+    (60,     240,          "1 – 4 h"),
+    (240,    1440,         "4 – 24 h"),
+    (1440,   float("inf"), "> 24 h"),
+]
+
+
+def duration_histogram(df, scale="log"):
+    """Distribution des durees des taches reussies, selon 3 echelles :
+      - "log"     : binning en log10 — les durees s'etalent de quelques
+                    secondes a des milliers d'heures, en lineaire tout
+                    s'ecrase dans le premier bin ;
+      - "linear"  : echelle standard (minutes brutes) — utile pour voir
+                    a quel point les extremes dominent ;
+      - "classes" : effectifs par classe de duree (< 1 min, 1-5 min...),
+                    lecture immediate sans notion d'echelle.
+    """
     src = df[(df["Duration_Minutes"] > 0) & (df["Task_State"] == "success")].copy()
-    src["Log_Minutes"] = np.log10(src["Duration_Minutes"])
-    fig = px.histogram(
-        src, x="Log_Minutes", nbins=40,
-        color_discrete_sequence=[CIH_ORANGE],
-        labels={"Log_Minutes": "Durée (minutes, échelle log)", "count": "Nb tâches"},
-    )
-    ticks = list(range(-2, 6))
-    fig.update_xaxes(
-        tickvals=ticks,
-        ticktext=["0,01", "0,1", "1", "10", "100", "1 000", "10 000", "100 000"],
-    )
-    fig.update_traces(hovertemplate="%{y} tâche(s)<extra></extra>")
+
+    if scale == "classes":
+        edges  = [c[0] for c in DURATION_CLASSES] + [float("inf")]
+        labels = [c[2] for c in DURATION_CLASSES]
+        src["Classe"] = pd.cut(src["Duration_Minutes"], bins=edges, labels=labels, right=False)
+        counts = src["Classe"].value_counts().reindex(labels, fill_value=0).reset_index()
+        counts.columns = ["Classe", "Nb"]
+        fig = px.bar(
+            counts, x="Classe", y="Nb",
+            color_discrete_sequence=[CIH_ORANGE],
+            labels={"Classe": "Classe de durée", "Nb": "Nb tâches"},
+        )
+        fig.update_traces(hovertemplate="<b>%{x}</b><br>%{y} tâche(s)<extra></extra>")
+        fig.update_layout(**_LAYOUT, height=320,
+                          bargap=0.25,
+                          xaxis=dict(gridcolor=CIH_BORDER),
+                          yaxis=dict(gridcolor=CIH_BORDER))
+        return _round_bars(fig, radius=4)
+
+    if scale == "linear":
+        fig = px.histogram(
+            src, x="Duration_Minutes", nbins=60,
+            color_discrete_sequence=[CIH_ORANGE],
+            labels={"Duration_Minutes": "Durée (minutes)"},
+        )
+        fig.update_traces(hovertemplate="%{y} tâche(s)<extra></extra>")
+    else:
+        src["Log_Minutes"] = np.log10(src["Duration_Minutes"])
+        fig = px.histogram(
+            src, x="Log_Minutes", nbins=40,
+            color_discrete_sequence=[CIH_ORANGE],
+            labels={"Log_Minutes": "Durée (minutes, échelle log)"},
+        )
+        ticks = list(range(-2, 6))
+        fig.update_xaxes(
+            tickvals=ticks,
+            ticktext=["0,01", "0,1", "1", "10", "100", "1 000", "10 000", "100 000"],
+        )
+        fig.update_traces(hovertemplate="%{y} tâche(s)<extra></extra>")
+
+    # px.histogram nomme l'axe Y "count" quoi qu'on mette dans labels.
+    fig.update_yaxes(title_text="Nb tâches")
     fig.update_layout(**_LAYOUT, height=320,
                       bargap=0.12,
                       xaxis=dict(gridcolor=CIH_BORDER),
@@ -295,14 +373,14 @@ def schedule_distribution_segments(df):
     ]
 
 
-def schedule_pie(df):
+def schedule_pie(df, height=260):
     segs = [s for s in schedule_distribution_segments(df) if s["value"] > 0]
     total = sum(s["value"] for s in segs)
     return _donut(
         labels=[s["label"] for s in segs],
         values=[s["value"] for s in segs],
         colors=[s["color"] for s in segs],
-        center_top=total, center_bottom="DAGs",
+        center_top=total, center_bottom="DAGs", height=height,
     )
 
 

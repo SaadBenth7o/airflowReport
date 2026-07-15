@@ -33,7 +33,8 @@ STATE_COLORS = {
     "skipped":         "#F59E0B",
     "upstream_failed": "#F0481C",
     "running":         "#05AEEF",
-    "unknown":         "#9CA3AF",
+    "never_run":       "#9CA3AF",
+    "unknown":         "#6B7280",
 }
 
 STATE_FR = {
@@ -42,6 +43,7 @@ STATE_FR = {
     "skipped":         "Ignorée",
     "upstream_failed": "Échec amont",
     "running":         "En cours",
+    "never_run":       "Jamais exécutée",
     "unknown":         "Inconnu",
 }
 
@@ -51,6 +53,7 @@ STATE_BG = {
     "skipped":         "#FFFBEB",
     "upstream_failed": "#FFF5F0",
     "running":         "#F0F9FF",
+    "never_run":       "#F9FAFB",
     "unknown":         "#F9FAFB",
 }
 
@@ -136,6 +139,9 @@ def load_data(path=str(XLS_PATH)):
     raw = [dict(zip(headers, ws.row_values(i))) for i in range(1, ws.nrows)]
     df = pd.DataFrame(raw)
 
+    # A capturer AVANT le parsing des dates : "Never Run" devient NaT apres.
+    never_run = df["Task_Last_Run_Date"].astype(str).str.strip().eq("Never Run")
+
     df["Task_Last_Run_Date"] = df["Task_Last_Run_Date"].apply(_parse_date)
     df["Duration_Seconds"]   = df["Task_Duration"].apply(_parse_duration_seconds)
     df["Duration_Minutes"]   = df["Duration_Seconds"] / 60
@@ -143,9 +149,15 @@ def load_data(path=str(XLS_PATH)):
     df["Rows_Affected_Total"] = (
         pd.to_numeric(df["Rows_Affected_Total"], errors="coerce").fillna(0).astype(int)
     )
-    # Un etat vide dans l'export (cellule non renseignee) doit rester
-    # visible dans le rapport, pas disparaitre : on le classe "unknown".
-    df["Task_State"] = df["Task_State"].astype(str).str.strip().replace({"": "unknown", "nan": "unknown"})
+    # Un etat vide dans l'export doit rester visible, pas disparaitre.
+    # Si la tache n'a jamais tourne (Task_Last_Run_Date = "Never Run"),
+    # Airflow n'a simplement aucun etat a rapporter : on l'affiche
+    # "Jamais executee". Un vide sur une tache qui A tourne (cas non
+    # rencontre a ce jour) resterait "Inconnu".
+    state = df["Task_State"].astype(str).str.strip()
+    empty = state.isin(["", "nan"])
+    state = state.mask(empty & never_run, "never_run")
+    df["Task_State"] = state.replace({"": "unknown", "nan": "unknown"})
     df["State_Color"]        = df["Task_State"].map(STATE_COLORS).fillna("#9CA3AF")
     df["State_BG"]           = df["Task_State"].map(STATE_BG).fillna("#F9FAFB")
     df["State_FR"]           = df["Task_State"].map(STATE_FR).fillna(df["Task_State"])
@@ -173,7 +185,7 @@ def build_dag_summary(path=str(XLS_PATH)):
         df.groupby(["DAG_ID", "Task_State"])
         .size()
         .unstack(fill_value=0)
-        .reindex(columns=["success", "failed", "skipped", "upstream_failed", "running", "unknown"], fill_value=0)
+        .reindex(columns=["success", "failed", "skipped", "upstream_failed", "running", "never_run", "unknown"], fill_value=0)
     )
     counts.columns.name = None
 
@@ -218,7 +230,7 @@ def compute_health(path=str(XLS_PATH)):
     problems = int(df["Task_State"].isin(["failed", "upstream_failed"]).sum())
     label = ("Sain" if problems == 0
              else "Critique" if problems >= CRITICAL_PROBLEM_THRESHOLD
-             else "Degrade")
+             else "Dégradé")
     return {"label": label, "n_ok": n_ok, "n_ko": n_ko, "problems": problems}
 
 
@@ -237,7 +249,7 @@ def _validate_upload_bytes(file_bytes):
     if missing:
         return False, headers, "Colonnes manquantes : " + ", ".join(missing)
 
-    return True, headers, f"{ws.nrows - 1} ligne(s) detectee(s), structure conforme."
+    return True, headers, f"{ws.nrows - 1} ligne(s) détectée(s), structure conforme."
 
 
 def save_uploaded_file(uploaded_file):
@@ -256,19 +268,19 @@ def save_uploaded_file(uploaded_file):
     load_data.clear()
     build_dag_summary.clear()
     compute_health.clear()
-    return True, f"Nouveau fichier applique — {message}"
+    return True, f"Nouveau fichier appliqué — {message}"
 
 
 def render_data_uploader(st):
     """Widget sidebar : depot d'un nouvel export XLS pour rafraichir le
     dashboard sans toucher au systeme de fichiers manuellement. Le fichier
     est rejete s'il ne contient pas les memes colonnes que l'export actuel."""
-    st.sidebar.markdown('<div class="cih-nav-section-label">Donnees</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="cih-nav-section-label">Données</div>', unsafe_allow_html=True)
     uploaded = st.sidebar.file_uploader(
-        "Mettre a jour les donnees",
+        "Mettre à jour les données",
         type=["xls"],
         key="xls_uploader",
-        help="Deposez le dernier export Airflow (.xls) — memes colonnes que le fichier actuel.",
+        help="Déposez le dernier export Airflow (.xls) — mêmes colonnes que le fichier actuel.",
     )
     if uploaded is not None:
         sig = (uploaded.name, uploaded.size)
@@ -285,4 +297,4 @@ def render_data_uploader(st):
         mtime = datetime.fromtimestamp(XLS_PATH.stat().st_mtime)
         st.sidebar.caption(f"Source : {XLS_PATH.name}  ·  maj {mtime.strftime('%d/%m %H:%M')}")
     else:
-        st.sidebar.caption("Aucun fichier de donnees charge.")
+        st.sidebar.caption("Aucun fichier de données chargé.")

@@ -54,11 +54,12 @@ CIH = {
 }
 
 STATE_FR = {
-    "success":         ("Succes",      CIH["green"],  CIH["green_soft"]),
-    "failed":          ("Echec",       CIH["red"],    CIH["red_soft"]),
-    "skipped":         ("Ignoree",     CIH["amber"],  CIH["amber_soft"]),
-    "upstream_failed": ("Echec amont", CIH["orange"], CIH["orange_soft"]),
-    "running":         ("En cours",    CIH["blue"],   CIH["blue_soft"]),
+    "success":         ("Succès",          CIH["green"],  CIH["green_soft"]),
+    "failed":          ("Échec",           CIH["red"],    CIH["red_soft"]),
+    "skipped":         ("Ignorée",         CIH["amber"],  CIH["amber_soft"]),
+    "upstream_failed": ("Échec amont",     CIH["orange"], CIH["orange_soft"]),
+    "running":         ("En cours",        CIH["blue"],   CIH["blue_soft"]),
+    "never_run":       ("Jamais exécutée", CIH["muted"],  CIH["bg"]),
 }
 
 # Nom Streamlit "couleur" (:color[texte]) le plus proche de chaque etat —
@@ -71,9 +72,9 @@ STATE_MD_COLOR = {
 # Items de navigation — identiques au mockup (id, libelle, icone, route)
 NAV_ITEMS = [
     ("overview",    "Vue d'ensemble",     "grid",     ""),
-    ("failures",    "Echecs & alertes",   "alert",    "Failures"),
+    ("failures",    "Échecs & alertes",   "alert",    "Failures"),
     ("explorer",    "DAG Explorer",       "branch",   "DAG_Explorer"),
-    ("volume",      "Volume de donnees",  "database", "Data_Volume"),
+    ("volume",      "Volume de données",  "database", "Data_Volume"),
     ("performance", "Performance",        "activity", "Performance"),
     ("schedule",    "Planification",      "calendar", "Schedule"),
 ]
@@ -143,8 +144,10 @@ def apply_theme(st):
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-def page_header(st, title, subtitle="", crumb=None):
+def page_header(st, title, subtitle="", crumb=None, right_html=""):
     """En-tête de page avec breadcrumb, identique au header du mockup.
+    `right_html` : bloc optionnel (spans uniquement) aligne a droite dans
+    la carte — ex: badge "Donnees du ..." de la vue d'ensemble.
 
     ATTENTION : construit en une seule ligne HTML (concatenation de
     litteraux adjacents), jamais en f-string multi-lignes indentee. Une
@@ -155,8 +158,13 @@ def page_header(st, title, subtitle="", crumb=None):
     """
     crumb = crumb or title
     sub_html = f'<p class="cih-page-sub">{subtitle}</p>' if subtitle else ""
+    right_block = (
+        f'<div style="flex:none;align-self:center;">{right_html}</div>' if right_html else ""
+    )
     st.markdown(
-        f'<div class="cih-page-header">'
+        f'<div class="cih-page-header" style="display:flex;align-items:flex-start;'
+        f'justify-content:space-between;gap:16px;">'
+        f'<div style="min-width:0;">'
         f'<div class="cih-breadcrumb">'
         f'<span>Airflow</span>'
         f'<span style="opacity:.4;margin:0 4px">/</span>'
@@ -164,6 +172,8 @@ def page_header(st, title, subtitle="", crumb=None):
         f'</div>'
         f'<h1 class="cih-page-title">{title}</h1>'
         f'{sub_html}'
+        f'</div>'
+        f'{right_block}'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -237,7 +247,7 @@ def sidebar_shell(st, active):
         f'<div class="cih-health-widget">'
         f'<div class="cih-health-row">'
         f'<span class="cih-dot" style="background:{hc};"></span>'
-        f'<span style="font-size:13px;font-weight:700;color:{CIH["ink"]};">Sante globale</span>'
+        f'<span style="font-size:13px;font-weight:700;color:{CIH["ink"]};">Santé globale</span>'
         f'<span class="cih-health-badge" style="color:{hc};background:{hc}18;">{health_label}</span>'
         f'</div>'
         f'<div class="cih-health-boxes">'
@@ -247,13 +257,13 @@ def sidebar_shell(st, active):
         f'</div>'
         f'<div class="cih-health-box">'
         f'<div style="font-size:17px;font-weight:800;color:{n_ko_color};">{n_ko}</div>'
-        f'<div style="font-size:10.5px;color:{CIH["ink2"]};">degrades</div>'
+        f'<div style="font-size:10.5px;color:{CIH["ink2"]};">dégradés</div>'
         f'</div>'
         f'</div>'
         f'<div style="margin-top:11px;padding-top:9px;border-top:1px solid {CIH["border"]};'
         f'display:flex;align-items:center;gap:7px;">'
         f'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:{fresh_color};"></span>'
-        f'<span style="font-size:11px;color:{CIH["ink2"]};">Donnees du <b>{date_str}</b>'
+        f'<span style="font-size:11px;color:{CIH["ink2"]};">Données du <b>{date_str}</b>'
         f' &middot; <span style="color:{fresh_color};font-weight:700;">{fresh_label}</span></span>'
         f'</div>'
         f'</div>',
@@ -569,11 +579,18 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 }}
 
 /* ── conteneurs border=True (nos "cards") ── */
-[data-testid="stVerticalBlockBorderWrapper"] {{
+/* Streamlit <=1.4x : wrapper dedie stVerticalBlockBorderWrapper.
+   Streamlit 1.52 : plus de wrapper, la bordure est portee par le
+   stVerticalBlock lui-meme via la classe emotion st-emotion-cache-s8chrg
+   (hash stable pour une version donnee — A REVERIFIER apres tout upgrade
+   de Streamlit : si les cartes perdent leur ombre/rayon, ce hash a change). */
+[data-testid="stVerticalBlockBorderWrapper"],
+.stVerticalBlock.st-emotion-cache-s8chrg {{
     background: {CIH['surface']}; border: 1px solid {CIH['border']} !important;
     border-radius: 16px; box-shadow: 0 1px 3px rgba(21,18,19,.04);
 }}
 [data-testid="stVerticalBlockBorderWrapper"] > div > div {{ padding: 20px; }}
+.stVerticalBlock.st-emotion-cache-s8chrg {{ padding: 20px; }}
 
 /* ── section title ── */
 .cih-section {{
@@ -639,6 +656,16 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 [data-testid="stDataFrame"] {{
     border: 1px solid {CIH['border']}; border-radius: 14px; overflow: hidden;
 }}
+
+/* ── sliders recolores par carte ── */
+/* Streamlit colore le slider avec primaryColor (orange) via des styles
+   inline (gradient de la piste) : impossible a surcharger proprement en
+   CSS. hue-rotate decale la teinte de tout le widget — l'orange CIH
+   (~12deg) devient rouge template (~0deg) ou bleu CIH (~197deg), et les
+   gris de la piste, non satures, ne bougent pas. Cible : la classe
+   st-key-* posee par st.container(key="slider-red-...") autour du widget. */
+[class*="st-key-slider-red"] [data-testid="stSlider"] {{ filter: hue-rotate(-14deg) saturate(1.15); }}
+[class*="st-key-slider-blue"] [data-testid="stSlider"] {{ filter: hue-rotate(185deg); }}
 
 /* ── treemap plotly ── */
 /* La tuile racine implicite reste gris fonce (#444) : le plotly.js

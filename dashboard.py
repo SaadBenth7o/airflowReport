@@ -116,8 +116,8 @@ def render_alert_row(row, kind):
     else:
         col, bg = "#F0481C", "#FFF5F0"
 
-    meta = (f"{int(row['failed'])} echec(s) &middot; {int(row['upstream_failed'])} amont"
-            if is_failed else f"{int(row['upstream_failed'])} tache(s) bloquee(s)")
+    meta = (f"{int(row['failed'])} échec(s) &middot; {int(row['upstream_failed'])} amont"
+            if is_failed else f"{int(row['upstream_failed'])} tâche(s) bloquée(s)")
     badge = f'<span class="cih-alert-badge">Ancien &middot; {age} j</span>' if old else ""
     dag_href = f"DAG_Explorer?dag={quote(row['DAG_ID'])}"
     state_icon = svg_icon("x" if is_failed else "alert", 16, col)
@@ -137,7 +137,7 @@ def render_alert_row(row, kind):
         f'<div class="cih-alert-meta">{meta} &middot; {last}</div>'
         f'</div>'
         f'{badge}'
-        f'<a class="cih-alert-go" href="{dag_href}" target="_self" title="Voir le detail du DAG">{chevron_icon}</a>'
+        f'<a class="cih-alert-go" href="{dag_href}" target="_self" title="Voir le détail du DAG">{chevron_icon}</a>'
         f'</div>'
     )
 
@@ -147,45 +147,46 @@ with st.sidebar:
     sidebar_shell(st, active="overview")
 
 # ── Header ───────────────────────────────────────────────────────────────
-col_hdr, col_badge = st.columns([4, 1])
-with col_hdr:
-    page_header(
-        st,
-        title="Vue d'ensemble",
-        subtitle="Supervision de la plateforme de donnees CIH Bank.",
-    )
-with col_badge:
-    _, fresh_color, fresh_label = data_freshness(ref_date)
-    st.markdown(
-        f'<div class="cih-last-run" style="margin-top:10px;">'
-        f'{svg_icon("clock", 14, "#4E4B4C")}'
-        f'<div><div style="font-size:10px;color:#9AA0A8;font-weight:600;">Donnees du</div>'
-        f'<div style="font-weight:700;color:#151213;">{last_run_str}</div>'
-        f'<div style="font-size:10.5px;font-weight:700;color:{fresh_color};">{fresh_label}</div>'
-        f'</div></div>',
-        unsafe_allow_html=True,
-    )
+# Le badge "Donnees du ..." vit DANS la carte du titre (aligne a droite),
+# le header occupe donc toute la largeur. Interieur en <span> uniquement :
+# des <div> seraient re-parentes hors du bloc par le parseur Markdown.
+_, fresh_color, fresh_label = data_freshness(ref_date)
+snapshot_badge = (
+    f'<span class="cih-last-run">'
+    f'{svg_icon("clock", 14, "#4E4B4C")}'
+    f'<span style="display:inline-flex;flex-direction:column;">'
+    f'<span style="font-size:10px;color:#9AA0A8;font-weight:600;">Données du</span>'
+    f'<span style="font-weight:700;color:#151213;">{last_run_str}</span>'
+    f'<span style="font-size:10.5px;font-weight:700;color:{fresh_color};">{fresh_label}</span>'
+    f'</span></span>'
+)
+page_header(
+    st,
+    title="Vue d'ensemble",
+    subtitle="Supervision de la plateforme de données CIH Bank.",
+    right_html=snapshot_badge,
+)
 
 # ── KPI cards ────────────────────────────────────────────────────────────
 c1, c2, c3, c4, c5 = st.columns(5, gap="small")
 with c1:
     kpi_card(st, "DAGs actifs", total_dags,
-             sub=f"{total_tasks} taches au total",
+             sub=f"{total_tasks} tâches au total",
              color="#05AEEF", icon="branch")
 with c2:
-    kpi_card(st, "Taux de succes", f"{success_rate}%",
-             sub=f"{total_success} reussies",
+    kpi_card(st, "Taux de succès", f"{success_rate}%",
+             sub=f"{total_success} réussies",
              color="#22C55E", icon="check")
 with c3:
-    kpi_card(st, "Echecs", total_failed,
-             sub=f"{total_upstream} upstream failed",
+    kpi_card(st, "Échecs", total_failed,
+             sub=f"{total_upstream} échecs amont",
              color="#EF4444", icon="alert")
 with c4:
-    kpi_card(st, "Ignorees", total_skipped,
+    kpi_card(st, "Ignorées", total_skipped,
              sub=f"{total_running} en cours",
              color="#F59E0B", icon="zap")
 with c5:
-    kpi_card(st, "Lignes traitees", fmt(total_rows),
+    kpi_card(st, "Lignes traitées", fmt(total_rows),
              sub="volume connu",
              color="#F0481C", icon="database")
 
@@ -195,20 +196,22 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_l, col_r = st.columns([1, 1.45], gap="medium")
 with col_l:
     with st.container(border=True):
-        section_title(st, "Distribution des etats", color="#05AEEF")
+        section_title(st, "Distribution des états", color="#05AEEF")
         c_donut, c_legend = st.columns([1, 1])
         with c_donut:
-            st.plotly_chart(state_donut(df), use_container_width=True)
+            # height=340 : cale le bas de cette carte sur celui de la
+            # carte voisine "DAGs avec le plus d'echecs" (mesure reelle).
+            st.plotly_chart(state_donut(df, height=340), use_container_width=True)
         with c_legend:
             st.markdown("<div style='padding-top:24px;'></div>", unsafe_allow_html=True)
             donut_legend(st, state_distribution_segments(df))
 with col_r:
     with st.container(border=True):
-        badge = (f"top 10 &middot; {len(failed_dags)} DAG(s) concernes"
-                 if len(failed_dags) > 10 else f"{len(failed_dags)} DAG(s) concernes")
-        section_title(st, "DAGs avec le plus d'echecs", color="#EF4444", right=badge)
+        badge = (f"top 10 &middot; {len(failed_dags)} DAG(s) concernés"
+                 if len(failed_dags) > 10 else f"{len(failed_dags)} DAG(s) concernés")
+        section_title(st, "DAGs avec le plus d'échecs", color="#EF4444", right=badge)
         if failed_dags.empty:
-            st.success("Aucun DAG en echec.")
+            st.success("Aucun DAG en échec.")
         else:
             st.plotly_chart(dag_failures_bar(dag_summary), use_container_width=True)
 
@@ -234,7 +237,7 @@ def render_alert_card(rows_df, kind, title, color):
         if len(rows_df) > MAX_ALERT_ROWS:
             st.markdown(
                 f'<a class="cih-seeall" href="Failures" target="_self">'
-                f'Voir les {len(rows_df)} DAGs dans Echecs &amp; alertes'
+                f'Voir les {len(rows_df)} DAGs dans Échecs &amp; alertes'
                 f'{svg_icon("chevron", 14, "#4E4B4C")}</a>',
                 unsafe_allow_html=True,
             )
@@ -246,19 +249,19 @@ elif not failed_dags.empty and not upstream_dags.empty:
     col_a, col_b = st.columns([2, 1], gap="medium")
     with col_a:
         render_alert_card(failed_dags, "failed",
-                          f"{len(failed_dags)} DAG(s) avec des taches en echec", "#EF4444")
+                          f"{len(failed_dags)} DAG(s) avec des tâches en échec", "#EF4444")
     with col_b:
         render_alert_card(upstream_dags, "upstream",
-                          f"{len(upstream_dags)} DAG(s) avec dependances bloquees", "#F0481C")
+                          f"{len(upstream_dags)} DAG(s) avec dépendances bloquées", "#F0481C")
 else:
     # Une seule categorie concernee : sa carte prend toute la largeur au
     # lieu de laisser un tiers d'ecran vide, et l'autre est resumee en
     # une ligne.
     if not failed_dags.empty:
         render_alert_card(failed_dags, "failed",
-                          f"{len(failed_dags)} DAG(s) avec des taches en echec", "#EF4444")
-        st.caption("Aucune dependance bloquee.")
+                          f"{len(failed_dags)} DAG(s) avec des tâches en échec", "#EF4444")
+        st.caption("Aucune dépendance bloquée.")
     else:
         render_alert_card(upstream_dags, "upstream",
-                          f"{len(upstream_dags)} DAG(s) avec dependances bloquees", "#F0481C")
-        st.caption("Aucune tache en echec.")
+                          f"{len(upstream_dags)} DAG(s) avec dépendances bloquées", "#F0481C")
+        st.caption("Aucune tâche en échec.")
