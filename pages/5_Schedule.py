@@ -50,7 +50,7 @@ with col_l:
             donut_legend(st, schedule_distribution_segments(df))
 with col_r:
     with st.container(border=True):
-        section_title(st, "DAGs par heure de démarrage (UTC)", color="#05AEEF")
+        section_title(st, "DAGs (journaliers) par heure de démarrage (UTC)", color="#05AEEF")
         st.plotly_chart(schedule_hour_bar(df), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)

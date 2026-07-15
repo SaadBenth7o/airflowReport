@@ -187,7 +187,11 @@ def tasks_treemap(df, top_n=20):
     """Top des taches par volume, en surfaces proportionnelles (meme
     lecture que la repartition par DAG) — degrade rouge du template.
     go.Treemap plutot que px.treemap : Task_ID n'est pas unique entre
-    DAGs, il faut des ids DAG/tache pour ne pas fusionner les homonymes."""
+    DAGs, il faut des ids DAG/tache pour ne pas fusionner les homonymes.
+
+    Treemap plat : le zoom au clic n'apporte rien (une tuile qui remplit
+    l'ecran). layout.meta le marque pour le script de la page Volume qui
+    supprime ce zoom (retour false sur plotly_treemapclick)."""
     src = df[df["Rows_Affected_Total"] > 0].nlargest(top_n, "Rows_Affected_Total").copy()
     fig = go.Figure(go.Treemap(
         ids=src["DAG_ID"] + " / " + src["Task_ID"],
@@ -203,32 +207,68 @@ def tasks_treemap(df, top_n=20):
         ),
         tiling=dict(pad=0),
         textinfo="label",
+        textposition="middle center",
         hovertemplate="<b>%{label}</b><br>DAG : %{customdata[0]}<br>%{value:,} lignes<extra></extra>",
     ))
+    fig.update_layout(meta="cih-treemap-static")
     return _apply(fig, 380)
 
 
-def rows_treemap(dag_summary, top_n=None):
-    src = dag_summary[dag_summary["Total_Rows"] > 0].copy()
+def rows_treemap(df, top_n=None):
+    """Repartition du volume par DAG, avec drill-down : la vue initiale
+    montre les DAGs en tuiles proportionnelles ; un clic sur un DAG zoome
+    et revele ses TACHES, elles aussi proportionnelles ; un clic sur le
+    bandeau superieur (pathbar) revient a la vue DAGs.
+
+    Construit en go.Treemap a deux niveaux (DAG -> taches) : px.treemap
+    colorerait les parents par moyenne ponderee, alors qu'on veut garder
+    'plus fonce = plus de volume' aussi bien pour les DAGs (leur total)
+    que pour les taches (leur propre volume)."""
+    src = df[df["Rows_Affected_Total"] > 0].copy()
+    dag_totals = src.groupby("DAG_ID")["Rows_Affected_Total"].sum().sort_values(ascending=False)
     if top_n:
-        src = src.nlargest(top_n, "Total_Rows")
-    src["Rows_Label"] = src["Total_Rows"].apply(
-        lambda n: f"{n/1e9:.1f}B" if n >= 1e9 else f"{n/1e6:.0f}M" if n >= 1e6 else f"{n/1e3:.0f}K"
-    )
-    fig = px.treemap(
-        src, path=["DAG_ID"], values="Total_Rows",
-        color="Total_Rows",
-        color_continuous_scale=[[0, "#E0F2FE"], [1, CIH_BLUE]],
-        hover_data={"Total_Rows": ":,"},
-    )
-    # Le plotly.js embarque par Streamlit ignore root.color : la tuile
-    # racine implicite reste gris fonce (#444) et transparait dans les
-    # interstices. pad=0 la recouvre entierement ; la separation entre
-    # tuiles est assuree par des bordures blanches.
-    fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,} lignes<extra></extra>",
-                       marker=dict(cornerradius=6, line=dict(color="white", width=2)),
-                       tiling=dict(pad=0))
-    fig.update_coloraxes(showscale=False)
+        dag_totals = dag_totals.head(top_n)
+        src = src[src["DAG_ID"].isin(dag_totals.index)]
+
+    # Racine EXPLICITE : sans elle, la racine implicite n'a ni libelle ni
+    # valeur — le pathbar (bandeau de retour) s'affiche gris fonce #444 et
+    # son survol montre le hovertemplate brut ("%{label}...") faute de
+    # donnees a interpoler.
+    ROOT = "__root__"
+    ids     = [ROOT] + list(dag_totals.index) + (src["DAG_ID"] + "/" + src["Task_ID"]).tolist()
+    labels  = ["Tous les DAGs"] + list(dag_totals.index) + src["Task_ID"].tolist()
+    parents = [""] + [ROOT] * len(dag_totals) + src["DAG_ID"].tolist()
+    values  = [int(dag_totals.sum())] + [int(v) for v in dag_totals.values] + src["Rows_Affected_Total"].tolist()
+    # Meme echelle pour DAGs (total) et taches (volume propre) ; la racine
+    # est forcee a 0 = teinte la plus claire, pour un pathbar lisible.
+    colors  = [0] + values[1:]
+
+    fig = go.Figure(go.Treemap(
+        ids=ids, labels=labels, parents=parents, values=values,
+        branchvalues="total",
+        # Niveau d'entree = la racine explicite (sinon la vue initiale
+        # n'est que la tuile racine elle-meme) ; maxdepth=2 = le niveau
+        # courant + ses enfants directs — la vue initiale ne montre que
+        # les DAGs, la subdivision en taches n'apparait qu'apres le clic
+        # sur un DAG (le niveau courant devient alors ce DAG).
+        level=ROOT,
+        maxdepth=2,
+        marker=dict(
+            colors=colors,
+            colorscale=[[0, "#E0F2FE"], [1, CIH_BLUE]],
+            cornerradius=6,
+            line=dict(color="white", width=2),
+        ),
+        tiling=dict(pad=0),
+        pathbar=dict(thickness=26),
+        textinfo="label",
+        textposition="middle center",
+        hovertemplate="<b>%{label}</b><br>%{value:,} lignes<extra></extra>",
+    ))
+    # Marqueur pour le script de la page Volume : au niveau taches, un
+    # clic sur une tache RAMENE a la vue de tous les DAGs (au lieu de
+    # zoomer sur la tache, sans interet).
+    fig.update_layout(meta="cih-treemap-drill")
     return _apply(fig, 380)
 
 
@@ -385,7 +425,11 @@ def schedule_pie(df, height=260):
 
 
 def schedule_hour_bar(df):
+    # Uniquement les DAGs JOURNALIERS : melanger les heures de demarrage
+    # d'hebdomadaires/mensuels avec les quotidiens n'a pas de sens (ils ne
+    # tournent pas les memes jours).
     src = df.drop_duplicates("DAG_ID").copy()
+    src = src[src["Schedule_Category"] == "Journalier"]
     src = src[src["Schedule_Cron"] != "None"]
 
     def extract_hour(cron):

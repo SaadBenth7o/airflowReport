@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary
 from utils.charts import tasks_treemap, rows_treemap
@@ -55,11 +56,12 @@ n_dags_vol = int((dag_summary["Total_Rows"] > 0).sum())
 col_l, col_r = st.columns([1, 1], gap="medium")
 with col_l:
     with st.container(border=True):
-        section_title(st, "Répartition par DAG", color="#05AEEF", right="proportionnel")
+        section_title(st, "Répartition par DAG", color="#05AEEF",
+                      right="proportionnel · cliquer un DAG pour voir ses tâches")
         with st.container(key="slider-blue-volume"):
             top_dags = st.slider("Nombre de DAGs à afficher", min_value=5, max_value=n_dags_vol,
                                  value=n_dags_vol, step=1, key="vol_top_dags")
-        st.plotly_chart(rows_treemap(dag_summary, top_n=top_dags), use_container_width=True)
+        st.plotly_chart(rows_treemap(df, top_n=top_dags), use_container_width=True)
 with col_r:
     with st.container(border=True):
         section_title(st, "Top tâches par volume", color="#EF4444", right="proportionnel")
@@ -67,6 +69,62 @@ with col_r:
             top_n = st.slider("Nombre de tâches à afficher", min_value=5, max_value=40,
                               value=20, step=5, key="vol_top_tasks")
         st.plotly_chart(tasks_treemap(df, top_n=top_n), use_container_width=True)
+
+# Comportements de clic des deux treemaps (retour false depuis
+# plotly_treemapclick = annule le zoom par defaut de plotly) :
+#  - "cih-treemap-static" (Top taches, plat) : clic inerte — zoomer sur
+#    une tuile ne ferait que la faire remplir l'ecran ;
+#  - "cih-treemap-drill" (Repartition par DAG) : clic sur un DAG = zoom
+#    normal vers ses taches ; clic sur une TACHE = retour a la vue de
+#    tous les DAGs (via Plotly.restyle si le bundle est expose, sinon en
+#    re-cliquant le pathbar racine).
+# Relance a chaque rerun Streamlit (les graphiques sont alors recrees).
+components.html(
+    """
+    <script>
+    const bind = () => {
+        const plots = window.parent.document.querySelectorAll('.js-plotly-plot');
+        let nStatic = 0, nDrill = 0;
+        plots.forEach(p => {
+            const meta = p._fullLayout && p._fullLayout.meta;
+            if (meta === 'cih-treemap-static') {
+                nStatic++;
+                if (!p.__cihBound) {
+                    p.on('plotly_treemapclick', () => false);
+                    p.__cihBound = true;
+                }
+            } else if (meta === 'cih-treemap-drill') {
+                nDrill++;
+                if (!p.__cihBound) {
+                    p.on('plotly_treemapclick', ev => {
+                        const pt = ev.points && ev.points[0];
+                        if (!pt) return;
+                        const id = String(pt.id || '');
+                        const parent = String(pt.parent || '');
+                        const isTask = parent && parent !== '__root__' && id !== '__root__';
+                        if (!isTask) return;  // DAG ou racine : zoom par defaut
+                        const PL = window.parent.Plotly || window.Plotly;
+                        if (PL && PL.restyle) {
+                            PL.restyle(p, {level: '__root__'});
+                        } else {
+                            const root = p.querySelector('.trace.treemap .pathbar path.surface');
+                            if (root) ['mousedown', 'mouseup', 'click'].forEach(t =>
+                                root.dispatchEvent(new MouseEvent(t, {bubbles: true, cancelable: true})));
+                        }
+                        return false;
+                    });
+                    p.__cihBound = true;
+                }
+            }
+        });
+        return nStatic > 0 && nDrill > 0;
+    };
+    const iv = setInterval(() => { if (bind()) clearInterval(iv); }, 400);
+    setTimeout(() => clearInterval(iv), 20000);
+    </script>
+    """,
+    height=0,
+)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
