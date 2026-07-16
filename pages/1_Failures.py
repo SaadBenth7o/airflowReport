@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header, copy_button
+from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header, download_button
 
 st.set_page_config(page_title="Échecs & alertes · Airflow", page_icon="assets/transparent.png", layout="wide")
 apply_theme(st)
@@ -55,7 +55,7 @@ with st.container(border=True):
     section_title(st, "Détail des tâches en échec", color="#EF4444")
     tab1, tab2 = st.tabs(["Tâches en échec (failed)", "Tâches upstream failed"])
 
-    def show_failure_table(source_df, key_suffix):
+    def show_failure_table(source_df, key_suffix, title_prefix=""):
         if source_df.empty:
             st.success("Aucune tâche dans cet état.")
             return
@@ -66,18 +66,19 @@ with st.container(border=True):
         display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         display.columns = ["DAG", "Tâche", "Script", "Dernier run", "Durée", "Schedule"]
 
-        col_f1, col_f2 = st.columns([3, 1])
+        col_f1, col_f2 = st.columns([3.2, 1])
         with col_f1:
             dag_filter = st.multiselect(
                 "Filtrer par DAG", options=sorted(display["DAG"].unique()),
                 key=f"filter_{key_suffix}",
             )
         with col_f2:
+            st.write("")  # Spacer pour aligner avec l'input
             if dag_filter:
                 display_copy = display[display["DAG"].isin(dag_filter)]
             else:
                 display_copy = display
-            copy_button(st, display_copy, key=f"copy_{key_suffix}")
+            download_button(st, display_copy, title=title_prefix, key=f"dl_{key_suffix}")
 
         if dag_filter:
             display = display[display["DAG"].isin(dag_filter)]
@@ -90,8 +91,8 @@ with st.container(border=True):
         st.caption(f"{len(display)} tâche(s)")
 
     with tab1:
-        show_failure_table(failed_df, "failed")
+        show_failure_table(failed_df, "failed", "Tâches en échec")
 
     with tab2:
         st.info("Les tâches upstream_failed sont bloquées car une tâche précédente dans le même DAG a échoué.")
-        show_failure_table(upstream_df, "upstream")
+        show_failure_table(upstream_df, "upstream", "Tâches upstream failed")

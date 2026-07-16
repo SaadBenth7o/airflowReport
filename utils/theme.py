@@ -4,6 +4,7 @@ Icônes Lucide-style (SVG inline, identiques au mockup React validé).
 """
 
 import base64
+import io
 from datetime import datetime
 from pathlib import Path
 
@@ -146,17 +147,31 @@ def apply_theme(st):
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-def copy_button(st, dataframe, key="copy_btn"):
-    """Bouton de téléchargement CSV d'un DataFrame avec icône de copie.
-    Affiche en haut à côté des filtres pour capturer/copier le tableau."""
-    csv = dataframe.to_csv(index=False)
+def download_button(st, dataframe, title="Tableau", key="dl_btn"):
+    """Bouton de téléchargement Excel d'un DataFrame.
+    `title` : nom de la table/graphe (apparaît dans le nom du fichier).
+    Affiche en haut à côté des filtres avec icône formelle."""
+    data_date = reference_date(load_data())
+    date_str = data_date.strftime("%Y-%m-%d") if pd.notna(data_date) else datetime.now().strftime("%Y-%m-%d")
+    file_name = f"{title} - Snapshot {date_str}.xlsx"
+
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        dataframe.to_excel(writer, sheet_name="Données", index=False)
+    buffer.seek(0)
+
     st.download_button(
-        label="⎘ Copier",
-        data=csv,
-        file_name="tableau.csv",
-        mime="text/csv",
+        label="⬇ Télécharger",
+        data=buffer.getvalue(),
+        file_name=file_name,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key=key,
     )
+
+
+def copy_button(st, dataframe, key="copy_btn"):
+    """Alias pour download_button (pour compatibilité). Télécharge un DataFrame en Excel."""
+    download_button(st, dataframe, title="Tableau", key=key)
 
 
 def page_header(st, title, subtitle="", crumb=None, right_html=""):
@@ -691,7 +706,11 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 }}
 
 /* ── champs de saisie ── */
-.stTextInput input,
+.stTextInput input {{
+    border-radius: 10px !important;
+    border: 1px solid {CIH['border']} !important;
+    background: {CIH['surface']} !important;
+}}
 .stSelectbox div[data-baseweb="select"] > div,
 .stMultiSelect div[data-baseweb="select"] > div {{
     border-radius: 10px !important;

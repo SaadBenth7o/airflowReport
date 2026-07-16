@@ -5,7 +5,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import tasks_treemap, rows_treemap
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR, copy_button,
+    styled_column, STATE_FR_COLOR, download_button,
 )
 
 st.set_page_config(page_title="Volume de données · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -123,15 +123,17 @@ with st.container(border=True):
     has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
 
-    col_f1, col_f2 = st.columns([3, 1])
+    col_f1, col_f2 = st.columns([3.2, 1])
     with col_f1:
         dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
     with col_f2:
+        st.write("")  # Spacer pour aligner avec l'input
         if dag_filter:
             display_copy = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
         else:
             display_copy = has_rows
-        copy_button(st, display_copy[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy(), key="copy_vol_table")
+        download_button(st, display_copy[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy(),
+                        title="Toutes les tâches avec volume", key="dl_vol_table")
 
     if dag_filter:
         has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
