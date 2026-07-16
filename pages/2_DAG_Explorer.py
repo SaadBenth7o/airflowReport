@@ -5,7 +5,7 @@ from utils.charts import dag_task_composition, success_rate_gauge
 from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, section_title, sidebar_shell, page_header, svg_icon,
-    styled_column, STATE_FR_COLOR, download_button,
+    styled_column, STATE_FR_COLOR, download_button, label_spacer, chart_config,
 )
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -154,11 +154,13 @@ with col_detail:
     with col_comp:
         with st.container(border=True):
             section_title(st, "Composition des tâches", color="#05AEEF")
-            st.plotly_chart(dag_task_composition(df, sel_id, height=320), width="stretch")
+            st.plotly_chart(dag_task_composition(df, sel_id, height=320), width="stretch",
+                            config=chart_config(f"Composition des tâches - {sel_id}"))
     with col_gauge:
         with st.container(border=True):
             section_title(st, "Fiabilité", color="#22C55E")
-            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"], height=320), width="stretch")
+            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"], height=320), width="stretch",
+                            config=chart_config(f"Fiabilité - {sel_id}"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -174,7 +176,6 @@ with st.container(border=True):
 
     col_spacer, col_dl = st.columns([3.2, 1])
     with col_dl:
-        st.write("")  # Spacer pour aligner avec d'autres inputs
         download_button(st, task_display, title=f"Tâches du DAG {sel_id}", key="dl_dag_explorer")
 
     st.dataframe(

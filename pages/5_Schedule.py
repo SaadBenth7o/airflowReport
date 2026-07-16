@@ -6,7 +6,8 @@ from utils.charts import (
 )
 from utils.cron_fr import describe_cron
 from utils.theme import (
-    apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend, download_button,
+    apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend,
+    download_button, label_spacer, chart_config,
 )
 
 st.set_page_config(page_title="Planification · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -44,14 +45,16 @@ with col_l:
         with c_donut:
             # height=300 : aligne le bas de cette carte sur "DAGs par
             # heure de demarrage" (mesure reelle).
-            st.plotly_chart(schedule_pie(df, height=300), width="stretch")
+            st.plotly_chart(schedule_pie(df, height=300), width="stretch",
+                            config=chart_config("Fréquence de planification"))
         with c_legend:
             st.markdown("<div style='padding-top:20px;'></div>", unsafe_allow_html=True)
             donut_legend(st, schedule_distribution_segments(df))
 with col_r:
     with st.container(border=True):
         section_title(st, "DAGs (journaliers) par heure de démarrage (UTC)", color="#05AEEF")
-        st.plotly_chart(schedule_hour_bar(df), width="stretch")
+        st.plotly_chart(schedule_hour_bar(df), width="stretch",
+                        config=chart_config("DAGs (journaliers) par heure de démarrage"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -71,8 +74,6 @@ with st.container(border=True):
         )
     with col_f2:
         search_sched = st.text_input("Rechercher un DAG", key="sched_search")
-    with col_f3:
-        st.write("")  # Spacer pour aligner avec les inputs
 
     if cat_filter:
         dag_sched = dag_sched[dag_sched["Schedule_Category"].isin(cat_filter)]
@@ -88,8 +89,8 @@ with st.container(border=True):
     # ambre -> vert, a la place de la barre de progression.
     dag_sched_display["Succès %"] = dag_sched_display["Succès %"].map(lambda v: f"{v:.1f} %")
 
-    col_d1, col_d2 = st.columns([1, 0.6])
-    with col_d2:
+    with col_f3:
+        label_spacer(st)
         download_button(st, dag_sched_display, title="Planning des DAGs", key="dl_schedule_table")
 
     def _lerp(a, b, t):

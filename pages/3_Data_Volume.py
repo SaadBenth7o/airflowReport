@@ -5,7 +5,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import tasks_treemap, rows_treemap
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR, download_button,
+    styled_column, STATE_FR_COLOR, download_button, label_spacer, chart_config,
 )
 
 st.set_page_config(page_title="Volume de données · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -57,7 +57,8 @@ with st.container(border=True):
     with st.container(key="slider-blue-volume"):
         top_dags = st.slider("Nombre de DAGs à afficher", min_value=5, max_value=n_dags_vol,
                              value=n_dags_vol, step=1, key="vol_top_dags")
-    st.plotly_chart(rows_treemap(df, top_n=top_dags), width="stretch")
+    st.plotly_chart(rows_treemap(df, top_n=top_dags), width="stretch",
+                    config=chart_config("Répartition par DAG"))
 
 # Comportements de clic des deux treemaps (retour false depuis
 # plotly_treemapclick = annule le zoom par defaut de plotly) :
@@ -127,7 +128,7 @@ with st.container(border=True):
     with col_f1:
         dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
     with col_f2:
-        st.write("")  # Spacer pour aligner avec l'input
+        label_spacer(st)
         if dag_filter:
             display_copy = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
         else:

@@ -5,7 +5,7 @@ from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import state_donut, dag_failures_bar, state_distribution_segments
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    svg_icon, donut_legend, data_freshness,
+    svg_icon, donut_legend, data_freshness, chart_config,
 )
 
 st.set_page_config(
@@ -201,7 +201,8 @@ with col_l:
         with c_donut:
             # height=340 : cale le bas de cette carte sur celui de la
             # carte voisine "DAGs avec le plus d'echecs" (mesure reelle).
-            st.plotly_chart(state_donut(df, height=340), width="stretch")
+            st.plotly_chart(state_donut(df, height=340), width="stretch",
+                            config=chart_config("Distribution des états"))
         with c_legend:
             st.markdown("<div style='padding-top:24px;'></div>", unsafe_allow_html=True)
             donut_legend(st, state_distribution_segments(df))
@@ -213,7 +214,8 @@ with col_r:
         if failed_dags.empty:
             st.success("Aucun DAG en échec.")
         else:
-            st.plotly_chart(dag_failures_bar(dag_summary), width="stretch")
+            st.plotly_chart(dag_failures_bar(dag_summary), width="stretch",
+                            config=chart_config("DAGs avec le plus d'échecs"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 

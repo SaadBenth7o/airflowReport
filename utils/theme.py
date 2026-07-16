@@ -147,13 +147,34 @@ def apply_theme(st):
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
+def _snapshot_str():
+    """Horodatage du snapshot de donnees (date + heure + minute), utilise
+    dans les noms de fichiers exportes (tableaux Excel, graphes PNG)."""
+    data_date = reference_date(load_data())
+    if pd.notna(data_date):
+        return data_date.strftime("%Y-%m-%d_%Hh%M")
+    return datetime.now().strftime("%Y-%m-%d_%Hh%M")
+
+
+def label_spacer(st):
+    """Espaceur invisible reprenant exactement le testid/classe du label
+    natif de Streamlit (stWidgetLabel) : sa hauteur suit donc automatiquement
+    la vraie hauteur de label (via le CSS Streamlit lui-meme), plutot qu'une
+    valeur en pixels devinee a la main. Sert a aligner verticalement un
+    bouton place a cote d'un input avec label (text_input, selectbox...)."""
+    st.markdown(
+        '<div data-testid="stWidgetLabel" style="visibility:hidden;">'
+        '<p>&nbsp;</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def download_button(st, dataframe, title="Tableau", key="dl_btn"):
     """Bouton de téléchargement Excel d'un DataFrame.
     `title` : nom de la table/graphe (apparaît dans le nom du fichier).
-    Affiche en haut à côté des filtres avec icône formelle."""
-    data_date = reference_date(load_data())
-    date_str = data_date.strftime("%Y-%m-%d") if pd.notna(data_date) else datetime.now().strftime("%Y-%m-%d")
-    file_name = f"{title} - Snapshot {date_str}.xlsx"
+    Affiche en haut à côté des filtres, avec l'icône Material 'download'
+    (formelle, pas d'emoji) fournie nativement par st.download_button."""
+    file_name = f"{title} - Snapshot {_snapshot_str()}.xlsx"
 
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
@@ -161,7 +182,8 @@ def download_button(st, dataframe, title="Tableau", key="dl_btn"):
     buffer.seek(0)
 
     st.download_button(
-        label="⬇ Télécharger",
+        label="Télécharger",
+        icon=":material/download:",
         data=buffer.getvalue(),
         file_name=file_name,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -172,6 +194,20 @@ def download_button(st, dataframe, title="Tableau", key="dl_btn"):
 def copy_button(st, dataframe, key="copy_btn"):
     """Alias pour download_button (pour compatibilité). Télécharge un DataFrame en Excel."""
     download_button(st, dataframe, title="Tableau", key=key)
+
+
+def chart_config(title):
+    """Config Plotly a passer a st.plotly_chart(fig, config=...) : le bouton
+    'Telecharger en PNG' du modebar (icone appareil photo native de Plotly)
+    exporte alors sous un nom de fichier significatif (titre de la section +
+    horodatage du snapshot) au lieu du defaut generique 'newplot'."""
+    return {
+        "toImageButtonOptions": {
+            "format": "png",
+            "filename": f"{title} - Snapshot {_snapshot_str()}",
+        },
+        "displaylogo": False,
+    }
 
 
 def page_header(st, title, subtitle="", crumb=None, right_html=""):

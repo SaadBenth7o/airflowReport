@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_dag
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR, download_button,
+    styled_column, STATE_FR_COLOR, download_button, chart_config,
 )
 
 st.set_page_config(page_title="Performance · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -62,7 +62,8 @@ with st.container(border=True):
     )
     scale = {"Échelle par classe": "classes",
              "Échelle logarithmique": "log"}[scale_label]
-    st.plotly_chart(duration_histogram(df, scale=scale), width="stretch")
+    st.plotly_chart(duration_histogram(df, scale=scale), width="stretch",
+                    config=chart_config("Distribution des durées"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -73,27 +74,25 @@ with col_l:
         section_title(st, "DAGs les plus longs", color="#05AEEF", right="durée cumulée")
         with st.container(key="slider-blue-perf"):
             top_dags = st.slider("Nombre de DAGs", 5, 30, 15, 5, key="perf_top_dags")
-        st.plotly_chart(duration_by_dag(df, top_n=top_dags), width="stretch")
+        st.plotly_chart(duration_by_dag(df, top_n=top_dags), width="stretch",
+                        config=chart_config("DAGs les plus longs"))
 with col_r:
     with st.container(border=True):
         section_title(st, "Tâches les plus longues", color="#EF4444")
         with st.container(key="slider-red-perf"):
             top_n = st.slider("Nombre de tâches", 5, 30, 15, 5, key="perf_top_tasks")
-        st.plotly_chart(slowest_tasks_bar(df, top_n=top_n), width="stretch")
+        st.plotly_chart(slowest_tasks_bar(df, top_n=top_n), width="stretch",
+                        config=chart_config("Tâches les plus longues"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 with st.container(border=True):
     section_title(st, "Durées par DAG", color="#F0481C")
-    col_s1, col_s2 = st.columns([2.2, 1])
-    with col_s1:
-        selected = st.selectbox(
-            "Choisir un DAG",
-            ["— Tous les DAGs —"] + sorted(df["DAG_ID"].unique()),
-            key="perf_dag",
-        )
-    with col_s2:
-        st.write("")  # Spacer pour aligner avec le selectbox
+    selected = st.selectbox(
+        "Choisir un DAG",
+        ["— Tous les DAGs —"] + sorted(df["DAG_ID"].unique()),
+        key="perf_dag",
+    )
 
     src = df[df["Duration_Seconds"] > 0].copy()
     if selected != "— Tous les DAGs —":

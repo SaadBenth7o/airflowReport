@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header, download_button
+from utils.theme import (
+    apply_theme, kpi_card, section_title, sidebar_shell, page_header,
+    download_button, label_spacer, chart_config,
+)
 
 st.set_page_config(page_title="Échecs & alertes · Airflow", page_icon="assets/transparent.png", layout="wide")
 apply_theme(st)
@@ -48,7 +51,8 @@ all_bad = df[df["Task_State"].isin(["failed", "upstream_failed"])].dropna(subset
 if not all_bad.empty:
     with st.container(border=True):
         section_title(st, "Timeline des échecs par DAG", color="#EF4444")
-        st.plotly_chart(failures_timeline(df), width="stretch")
+        st.plotly_chart(failures_timeline(df), width="stretch",
+                        config=chart_config("Timeline des échecs par DAG"))
     st.markdown("<br>", unsafe_allow_html=True)
 
 with st.container(border=True):
@@ -73,7 +77,7 @@ with st.container(border=True):
                 key=f"filter_{key_suffix}",
             )
         with col_f2:
-            st.write("")  # Spacer pour aligner avec l'input
+            label_spacer(st)
             if dag_filter:
                 display_copy = display[display["DAG"].isin(dag_filter)]
             else:
