@@ -644,11 +644,11 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
 [data-testid="stSidebar"] a.cih-brand-link:hover .cih-brand {{ background: {CIH['bg']}; }}
 .cih-brand {{
     display: flex; flex-direction: column; align-items: flex-start; gap: 9px;
-    padding: 20px 20px 16px;
+    padding: 4px 20px 16px;
     border-bottom: 1px solid {CIH['border']};
     transition: background .12s;
 }}
-.cih-brand-logo-img {{ width: 50%; max-width: 50%; height: auto; display: block; border-radius: 10px; }}
+.cih-brand-logo-img {{ width: 75%; max-width: 75%; height: auto; display: block; border-radius: 10px; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};
