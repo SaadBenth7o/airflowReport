@@ -648,7 +648,7 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
     border-bottom: 1px solid {CIH['border']};
     transition: background .12s;
 }}
-.cih-brand-logo-img {{ width: 100%; max-width: 100%; height: auto; display: block; }}
+.cih-brand-logo-img {{ width: 50%; max-width: 50%; height: auto; display: block; border-radius: 10px; }}
 .cih-brand-logo {{
     width: 38px; height: 38px; flex: none;
     border-radius: 10px; background: {CIH['orange']};
