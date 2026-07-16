@@ -232,10 +232,10 @@ def chart_config(title, export_width=None):
     }
 
 
-# Icone Lucide 'image' (rect + point + montagne), en remplacement de
-# l'appareil photo par defaut de Plotly pour le bouton telecharger — la
-# camera ne dit pas explicitement 'PNG'. Coordonnees identiques a celles
-# de _ICON_PATHS (meme convention 24x24 que les icones du reste de l'UI).
+# Icones Lucide (memes conventions 24x24 stroke que _ICON_PATHS) injectees
+# dans le modebar Plotly : 'image' remplace l'appareil photo par defaut du
+# bouton telecharger (une camera ne dit pas 'PNG') ; 'maximize' habille le
+# bouton plein ecran maison (voir plotly_export_js).
 _DOWNLOAD_ICON_SVG = (
     '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
     'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
@@ -243,6 +243,16 @@ _DOWNLOAD_ICON_SVG = (
     '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>'
     '<circle cx="8.5" cy="8.5" r="1.5"/>'
     '<polyline points="21 15 16 10 5 21"/>'
+    '</svg>'
+)
+_FULLSCREEN_ICON_SVG = (
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
+    'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" style="display:block;margin:auto;">'
+    '<polyline points="15 3 21 3 21 9"/>'
+    '<polyline points="9 21 3 21 3 9"/>'
+    '<line x1="21" y1="3" x2="14" y2="10"/>'
+    '<line x1="3" y1="21" x2="10" y2="14"/>'
     '</svg>'
 )
 
@@ -259,14 +269,33 @@ def plotly_export_js(st):
        plotly_beforeexport de Plotly.js) puis la retire juste apres
        (plotly_afterexport), pour que l'image telechargee reste lisible
        sans dupliquer la legende HTML CIH affichee a l'ecran.
+    3. Ajoute un bouton 'plein ecran' fait maison, clone a cote du bouton
+       telecharger DANS LE MEME groupe du modebar Plotly (au lieu du
+       bouton plein ecran natif de Streamlit, affiche dans un calque HTML
+       separe) : les deux boutons sont ainsi litteralement les memes
+       elements de la meme barre d'outils, alignes par construction —
+       plus de decalage entre deux systemes de positionnement distincts.
+       Le bouton plein ecran natif de Streamlit est masque (juste pour
+       CE graphique, pas globalement : les tableaux gardent le leur).
     Rejoue a intervalle regulier (Streamlit recree le modebar a chaque
-    rerun d'un graphique, ex: changement de slider) ; N'A PAS ETE TESTE
-    EN NAVIGATEUR (session sans verification navigateur) — reperer ici en
-    cas de souci sur l'icone du bouton ou la legende exportee des donuts.
+    rerun d'un graphique, ex: changement de slider) ; le remplacement
+    d'icone et la legende d'export s'appuient sur window.parent.Plotly
+    (confirme expose par le bundle Streamlit) mais N'ONT PAS ETE TESTES
+    EN NAVIGATEUR (session sans verification navigateur) — reperer ici
+    en cas de souci sur l'icone, le bouton plein ecran ou la legende
+    exportee des donuts.
     """
     st.components.v1.html(
         f"""
         <script>
+        function cihToggleFullscreen(el) {{
+            const doc = el.ownerDocument;
+            if (doc.fullscreenElement === el) {{
+                (doc.exitFullscreen || doc.webkitExitFullscreen || function(){{}}).call(doc);
+            }} else {{
+                (el.requestFullscreen || el.webkitRequestFullscreen || function(){{}}).call(el);
+            }}
+        }}
         const bind = () => {{
             const plots = window.parent.document.querySelectorAll('.js-plotly-plot');
             plots.forEach(p => {{
@@ -295,6 +324,27 @@ def plotly_export_js(st):
                         dlBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
                         dlBtn.__cihIconSwapped = true;
                     }}
+                    const group = dlBtn && dlBtn.closest('.modebar-group');
+                    if (dlBtn && group && !group.querySelector('.cih-fullscreen-btn')) {{
+                        const fsBtn = dlBtn.cloneNode(true);
+                        fsBtn.classList.add('cih-fullscreen-btn');
+                        fsBtn.setAttribute('data-title', 'Plein écran');
+                        fsBtn.innerHTML = {_FULLSCREEN_ICON_SVG!r};
+                        fsBtn.addEventListener('click', (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const wrapper = p.closest('[data-testid="stElementContainer"]') || p;
+                            cihToggleFullscreen(wrapper);
+                        }});
+                        group.insertBefore(fsBtn, dlBtn);
+                    }}
+                    // Le bouton plein ecran natif de Streamlit fait double
+                    // emploi avec celui ci-dessus : masque uniquement pour
+                    // CE graphique (pas globalement — les tableaux gardent
+                    // le leur, avec recherche/export CSV).
+                    const container = p.closest('[data-testid="stElementContainer"]');
+                    const nativeToolbar = container && container.querySelector('[data-testid="stElementToolbar"]');
+                    if (nativeToolbar) {{ nativeToolbar.style.display = 'none'; }}
                 }} catch (e) {{}}
             }});
         }};

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
+from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
     download_button, align_bottom_row, chart_config, plotly_export_js,
@@ -68,7 +69,10 @@ with st.container(border=True):
             "Task_Last_Run_Date", "Duration_Display", "Schedule_Cron"
         ]].copy()
         display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
-        display.columns = ["DAG", "Tâche", "Script", "Dernier run", "Durée", "Schedule"]
+        # Cron -> phrase francaise (comme sur Planification) : une expression
+        # brute type "12 1/4 * * *" n'est pas exploitable ici.
+        display["Schedule_Cron"] = display["Schedule_Cron"].apply(describe_cron)
+        display.columns = ["DAG", "Tâche", "Script", "Dernier run", "Durée", "Planification"]
 
         with align_bottom_row(st, key=f"align-bottom-{key_suffix}"):
             col_f1, col_f2 = st.columns([3.2, 1])

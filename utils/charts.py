@@ -9,11 +9,14 @@ from utils.data_loader import STATE_COLORS, CIH_ORANGE, CIH_BLUE, CIH_BG, CIH_TE
 # l'ecran (aucun changement visuel), mais un PNG exporte avec un fond
 # transparent s'affiche noir/damier dans la plupart des visionneuses —
 # le blanc explicite reste correct dans tous les cas.
+# t=32 (au lieu de 20) : laisse un peu plus d'air sous le modebar Plotly
+# (telecharger + plein ecran) pour qu'il ne chevauche pas le contenu du
+# graphique (barres/segments proches du haut).
 _LAYOUT = dict(
     paper_bgcolor="#FFFFFF",
     plot_bgcolor="#FFFFFF",
     font=dict(family="Inter, sans-serif", color=CIH_TEXT, size=13),
-    margin=dict(l=10, r=10, t=20, b=10),
+    margin=dict(l=10, r=10, t=32, b=10),
     hoverlabel=dict(bgcolor="white", bordercolor=CIH_BORDER, font_size=13),
 )
 
