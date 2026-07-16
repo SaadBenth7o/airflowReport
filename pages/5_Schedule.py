@@ -7,7 +7,7 @@ from utils.charts import (
 from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend,
-    download_button, align_bottom_row, chart_config,
+    download_button, align_bottom_row, chart_config, plotly_export_js,
 )
 
 st.set_page_config(page_title="Planification · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -46,7 +46,7 @@ with col_l:
             # height=300 : aligne le bas de cette carte sur "DAGs par
             # heure de demarrage" (mesure reelle).
             st.plotly_chart(schedule_pie(df, height=300), width="stretch",
-                            config=chart_config("Fréquence de planification"))
+                            config=chart_config("Fréquence de planification", export_width=650))
         with c_legend:
             st.markdown("<div style='padding-top:20px;'></div>", unsafe_allow_html=True)
             donut_legend(st, schedule_distribution_segments(df))
@@ -129,3 +129,5 @@ with st.container(border=True):
         hide_index=True,
     )
     st.caption(f"{len(dag_sched_display)} DAG(s) affichés")
+
+plotly_export_js(st)

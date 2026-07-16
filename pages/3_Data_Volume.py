@@ -6,6 +6,7 @@ from utils.charts import tasks_treemap, rows_treemap
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
     styled_column, STATE_FR_COLOR, download_button, align_bottom_row, chart_config,
+    plotly_export_js,
 )
 
 st.set_page_config(page_title="Volume de données · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -151,3 +152,5 @@ with st.container(border=True):
         hide_index=True,
     )
     st.caption(f"{len(display)} tâche(s) avec volume")
+
+plotly_export_js(st)

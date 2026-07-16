@@ -5,9 +5,13 @@ import pandas as pd
 
 from utils.data_loader import STATE_COLORS, CIH_ORANGE, CIH_BLUE, CIH_BG, CIH_TEXT, CIH_BORDER
 
+# Fond blanc plutot que transparent : les cartes ont deja un fond blanc a
+# l'ecran (aucun changement visuel), mais un PNG exporte avec un fond
+# transparent s'affiche noir/damier dans la plupart des visionneuses —
+# le blanc explicite reste correct dans tous les cas.
 _LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="#FFFFFF",
+    plot_bgcolor="#FFFFFF",
     font=dict(family="Inter, sans-serif", color=CIH_TEXT, size=13),
     margin=dict(l=10, r=10, t=20, b=10),
     hoverlabel=dict(bgcolor="white", bordercolor=CIH_BORDER, font_size=13),
@@ -74,7 +78,10 @@ def _donut(labels, values, colors, center_top, center_bottom, height=260, hole=0
         x=0.5, y=0.5, showarrow=False, font=dict(size=26, color=CIH_TEXT),
     )
     layout = {**_LAYOUT, "margin": dict(l=10, r=10, t=10, b=10)}
-    fig.update_layout(**layout, height=height, showlegend=False)
+    # meta="cih-donut-export" : marqueur consomme par utils.theme.plotly_export_js
+    # (ajoute une legende native uniquement au moment du telechargement PNG,
+    # sans dupliquer la legende HTML CIH affichee a l'ecran).
+    fig.update_layout(**layout, height=height, showlegend=False, meta="cih-donut-export")
     return fig
 
 

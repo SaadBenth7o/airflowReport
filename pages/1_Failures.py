@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    download_button, align_bottom_row, chart_config,
+    download_button, align_bottom_row, chart_config, plotly_export_js,
 )
 
 st.set_page_config(page_title="Échecs & alertes · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -100,3 +100,5 @@ with st.container(border=True):
     with tab2:
         st.info("Les tâches upstream_failed sont bloquées car une tâche précédente dans le même DAG a échoué.")
         show_failure_table(upstream_df, "upstream", "Tâches upstream failed")
+
+plotly_export_js(st)

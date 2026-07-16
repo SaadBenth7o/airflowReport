@@ -193,18 +193,125 @@ def copy_button(st, dataframe, key="copy_btn"):
     download_button(st, dataframe, title="Tableau", key=key)
 
 
-def chart_config(title):
-    """Config Plotly a passer a st.plotly_chart(fig, config=...) : le bouton
-    'Telecharger en PNG' du modebar (icone appareil photo native de Plotly)
-    exporte alors sous un nom de fichier significatif (titre de la section +
-    horodatage du snapshot) au lieu du defaut generique 'newplot'."""
-    return {
-        "toImageButtonOptions": {
-            "format": "png",
-            "filename": f"{title} - Snapshot {_snapshot_str()}",
-        },
-        "displaylogo": False,
+# Boutons du modebar Plotly a retirer : on ne garde que 'toImage'
+# (telecharger en PNG). Les DAGs/taches se filtrent via les widgets
+# Streamlit (sliders, multiselect) — zoom/pan/lasso/axes n'apportent
+# rien ici et encombrent la barre d'outils.
+_MODEBAR_REMOVE = [
+    "zoom2d", "pan2d", "select2d", "lasso2d",
+    "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d",
+    "hoverClosestCartesian", "hoverCompareCartesian",
+    "hoverClosestPie", "hoverClosestGl2d", "hoverClosest3d", "hoverClosestGeo",
+    "toggleHover", "toggleSpikelines", "resetViews", "resetViewMapbox",
+    "zoomInMapbox", "zoomOutMapbox", "sendDataToCloud",
+]
+
+
+def chart_config(title, export_width=None):
+    """Config Plotly a passer a st.plotly_chart(fig, config=...) :
+    - le bouton 'Telecharger en PNG' du modebar exporte sous un nom de
+      fichier significatif (titre de la section + horodatage du snapshot)
+      au lieu du defaut generique 'newplot' ;
+    - modebar reduit au seul bouton telechargement (zoom/pan/axes retires,
+      redondants avec les widgets Streamlit) et toujours visible (pas
+      seulement au survol) ;
+    - `export_width` : largeur (px) forcee pour l'image exportee, utile
+      pour les donuts qui gagnent une legende native au moment de
+      l'export (cih-donut-export, voir plotly_export_js)."""
+    img_opts = {
+        "format": "png",
+        "filename": f"{title} - Snapshot {_snapshot_str()}",
     }
+    if export_width:
+        img_opts["width"] = export_width
+    return {
+        "toImageButtonOptions": img_opts,
+        "displaylogo": False,
+        "displayModeBar": True,
+        "modeBarButtonsToRemove": _MODEBAR_REMOVE,
+    }
+
+
+# Icone Lucide 'image' (rect + point + montagne), en remplacement de
+# l'appareil photo par defaut de Plotly pour le bouton telecharger — la
+# camera ne dit pas explicitement 'PNG'. Coordonnees identiques a celles
+# de _ICON_PATHS (meme convention 24x24 que les icones du reste de l'UI).
+_DOWNLOAD_ICON_SVG = (
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
+    'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" style="display:block;margin:auto;">'
+    '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>'
+    '<circle cx="8.5" cy="8.5" r="1.5"/>'
+    '<polyline points="21 15 16 10 5 21"/>'
+    '</svg>'
+)
+
+
+def plotly_export_js(st):
+    """Injecte un script partage par toutes les pages a graphiques Plotly :
+    1. Remplace l'icone 'appareil photo' du bouton telecharger PNG par une
+       icone 'image' plus explicite (remplacement complet du SVG interne,
+       pas seulement le path — evite de dependre de la matrice de
+       transformation interne de Plotly, propre a son systeme d'icones).
+    2. Pour les graphiques marques meta='cih-donut-export' (donuts sans
+       legende native a l'ecran, cf. utils.charts._donut) : ajoute une
+       legende native a droite juste avant l'export PNG (evenement
+       plotly_beforeexport de Plotly.js) puis la retire juste apres
+       (plotly_afterexport), pour que l'image telechargee reste lisible
+       sans dupliquer la legende HTML CIH affichee a l'ecran.
+    Rejoue a intervalle regulier (Streamlit recree le modebar a chaque
+    rerun d'un graphique, ex: changement de slider) ; N'A PAS ETE TESTE
+    EN NAVIGATEUR (session sans verification navigateur) — reperer ici en
+    cas de souci sur l'icone du bouton ou la legende exportee des donuts.
+    """
+    st.components.v1.html(
+        f"""
+        <script>
+        const bind = () => {{
+            const plots = window.parent.document.querySelectorAll('.js-plotly-plot');
+            plots.forEach(p => {{
+                const meta = p._fullLayout && p._fullLayout.meta;
+                if (meta === 'cih-donut-export' && !p.__cihExportBound) {{
+                    p.on('plotly_beforeexport', () => {{
+                        const PL = window.parent.Plotly || window.Plotly;
+                        if (!PL) return;
+                        PL.restyle(p, {{showlegend: true}}, [0]);
+                        PL.relayout(p, {{
+                            'legend.x': 1.02, 'legend.y': 0.5, 'legend.xanchor': 'left',
+                            margin: {{l: 10, r: 170, t: 10, b: 10}},
+                        }});
+                    }});
+                    p.on('plotly_afterexport', () => {{
+                        const PL = window.parent.Plotly || window.Plotly;
+                        if (!PL) return;
+                        PL.restyle(p, {{showlegend: false}}, [0]);
+                        PL.relayout(p, {{margin: {{l: 10, r: 10, t: 10, b: 10}}}});
+                    }});
+                    p.__cihExportBound = true;
+                }}
+                try {{
+                    const dlBtn = p.querySelector('.modebar-btn[data-title*="Download plot"]');
+                    if (dlBtn && !dlBtn.__cihIconSwapped) {{
+                        dlBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
+                        dlBtn.__cihIconSwapped = true;
+                    }}
+                }} catch (e) {{}}
+            }});
+        }};
+        const iv = setInterval(bind, 500);
+        setTimeout(() => clearInterval(iv), 20000);
+        </script>
+        """,
+        height=0,
+    )
+
+
+def align_right(st, key):
+    """Conteneur alignant son contenu (ex: un seul bouton, sans filtre
+    voisin a aligner) sur le bord droit reel — flexbox justify-content,
+    plutot qu'une colonne etroite ou le bouton reste colle a gauche de
+    sa colonne (position qui paraît flottante, ni centree ni a droite)."""
+    return st.container(key=key)
 
 
 def page_header(st, title, subtitle="", crumb=None, right_html=""):
@@ -311,7 +418,6 @@ def sidebar_shell(st, active):
         f'<div class="cih-health-row">'
         f'<span class="cih-dot" style="background:{hc};"></span>'
         f'<span style="font-size:13px;font-weight:700;color:{CIH["ink"]};">Santé globale</span>'
-        f'<span class="cih-health-badge" style="color:{hc};background:{hc}18;">{health_label}</span>'
         f'</div>'
         f'<div class="cih-health-boxes">'
         f'<div class="cih-health-box">'
@@ -738,6 +844,19 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
    voisin qui, lui, a un label au-dessus. */
 [class*="st-key-align-bottom"] div[data-testid="stHorizontalBlock"] {{
     align-items: flex-end;
+}}
+
+/* ── alignement a droite d'un bouton seul (sans filtre voisin) ── */
+[class*="st-key-align-right"] {{
+    display: flex;
+    justify-content: flex-end;
+}}
+
+/* ── barre d'outils native Streamlit des graphiques (plein ecran...) ── */
+/* Masquee par defaut, visible seulement au survol : on la force visible
+   en permanence, comme demande pour le bouton plein ecran. */
+[data-testid="stElementToolbar"] {{
+    opacity: 1 !important;
 }}
 
 /* ── treemap plotly ── */

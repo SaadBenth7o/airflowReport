@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_dag
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR, download_button, chart_config,
+    styled_column, STATE_FR_COLOR, download_button, chart_config, plotly_export_js, align_right,
 )
 
 st.set_page_config(page_title="Performance · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -108,8 +108,7 @@ with st.container(border=True):
         perf_display["Task_Last_Run_Date"] = perf_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         perf_display.columns = ["DAG", "Tâche", "État", "Durée", "Min", "Dernier run"]
 
-        col_dl1, col_dl2 = st.columns([2.2, 1])
-        with col_dl2:
+        with align_right(st, key="align-right-perf"):
             download_button(st, perf_display[["DAG", "Tâche", "État", "Durée", "Dernier run"]].copy(),
                            title=f"Durées par DAG - {selected}", key="dl_perf_table")
 
@@ -119,3 +118,5 @@ with st.container(border=True):
             height=min(500, 38 * len(perf_display) + 40),
             hide_index=True,
         )
+
+plotly_export_js(st)

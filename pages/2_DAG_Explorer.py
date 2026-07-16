@@ -5,7 +5,7 @@ from utils.charts import dag_task_composition, success_rate_gauge
 from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, section_title, sidebar_shell, page_header, svg_icon,
-    styled_column, STATE_FR_COLOR, download_button, chart_config,
+    styled_column, STATE_FR_COLOR, download_button, chart_config, align_right, plotly_export_js,
 )
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -174,8 +174,7 @@ with st.container(border=True):
     task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
     task_display.columns = ["Tâche", "Opérateur", "Script", "État", "Dernier run", "Durée", "Lignes"]
 
-    col_spacer, col_dl = st.columns([3.2, 1])
-    with col_dl:
+    with align_right(st, key="align-right-dag-explorer"):
         download_button(st, task_display, title=f"Tâches du DAG {sel_id}", key="dl_dag_explorer")
 
     st.dataframe(
@@ -183,3 +182,5 @@ with st.container(border=True):
         height=min(500, 38 * len(task_display) + 40),
         hide_index=True,
     )
+
+plotly_export_js(st)
