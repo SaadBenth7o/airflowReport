@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
-from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header
+from utils.theme import apply_theme, kpi_card, section_title, sidebar_shell, page_header, copy_button
 
 st.set_page_config(page_title="Échecs & alertes · Airflow", page_icon="assets/transparent.png", layout="wide")
 apply_theme(st)
@@ -53,7 +53,7 @@ if not all_bad.empty:
 
 with st.container(border=True):
     section_title(st, "Détail des tâches en échec", color="#EF4444")
-    tab1, tab2 = st.tabs(["Tâches en échec (failed)", "Upstream failed"])
+    tab1, tab2 = st.tabs(["Tâches en échec (failed)", "Tâches upstream failed"])
 
     def show_failure_table(source_df, key_suffix):
         if source_df.empty:
@@ -65,10 +65,20 @@ with st.container(border=True):
         ]].copy()
         display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         display.columns = ["DAG", "Tâche", "Script", "Dernier run", "Durée", "Schedule"]
-        dag_filter = st.multiselect(
-            "Filtrer par DAG", options=sorted(display["DAG"].unique()),
-            key=f"filter_{key_suffix}",
-        )
+
+        col_f1, col_f2 = st.columns([3, 1])
+        with col_f1:
+            dag_filter = st.multiselect(
+                "Filtrer par DAG", options=sorted(display["DAG"].unique()),
+                key=f"filter_{key_suffix}",
+            )
+        with col_f2:
+            if dag_filter:
+                display_copy = display[display["DAG"].isin(dag_filter)]
+            else:
+                display_copy = display
+            copy_button(st, display_copy, key=f"copy_{key_suffix}")
+
         if dag_filter:
             display = display[display["DAG"].isin(dag_filter)]
         st.dataframe(
@@ -80,22 +90,6 @@ with st.container(border=True):
         st.caption(f"{len(display)} tâche(s)")
 
     with tab1:
-        if not failed_df.empty:
-            st.markdown("**DAGs les plus impactés**")
-            dag_fail_counts = (
-                failed_df.groupby("DAG_ID")
-                .agg(Echecs=("Task_ID", "count"), Dernier_run=("Task_Last_Run_Date", "max"))
-                .sort_values("Echecs", ascending=False)
-                .reset_index()
-            )
-            dag_fail_counts["Dernier_run"] = dag_fail_counts["Dernier_run"].dt.strftime("%d/%m  %H:%M").fillna("—")
-            st.dataframe(
-                dag_fail_counts.rename(columns={
-                    "DAG_ID": "DAG", "Echecs": "Tâches en échec", "Dernier_run": "Dernier run",
-                }),
-                width="stretch", hide_index=True, height=220,
-            )
-            st.markdown("---")
         show_failure_table(failed_df, "failed")
 
     with tab2:

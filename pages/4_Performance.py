@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import duration_histogram, slowest_tasks_bar, duration_by_dag
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR,
+    styled_column, STATE_FR_COLOR, copy_button,
 )
 
 st.set_page_config(page_title="Performance · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -85,11 +85,13 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 with st.container(border=True):
     section_title(st, "Durées par DAG", color="#F0481C")
-    selected = st.selectbox(
-        "Choisir un DAG",
-        ["— Tous les DAGs —"] + sorted(df["DAG_ID"].unique()),
-        key="perf_dag",
-    )
+    col_s1, col_s2 = st.columns([2, 1])
+    with col_s1:
+        selected = st.selectbox(
+            "Choisir un DAG",
+            ["— Tous les DAGs —"] + sorted(df["DAG_ID"].unique()),
+            key="perf_dag",
+        )
     src = df[df["Duration_Seconds"] > 0].copy()
     if selected != "— Tous les DAGs —":
         src = src[src["DAG_ID"] == selected]
@@ -103,6 +105,10 @@ with st.container(border=True):
         ]].sort_values("Duration_Minutes", ascending=False).copy()
         perf_display["Task_Last_Run_Date"] = perf_display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         perf_display.columns = ["DAG", "Tâche", "État", "Durée", "Min", "Dernier run"]
+
+        with col_s2:
+            copy_button(st, perf_display[["DAG", "Tâche", "État", "Durée", "Dernier run"]].copy(), key="copy_perf_table")
+
         st.dataframe(
             styled_column(perf_display.drop(columns=["Min"]), "État", STATE_FR_COLOR),
             width="stretch",

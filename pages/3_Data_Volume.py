@@ -5,7 +5,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import tasks_treemap, rows_treemap
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR,
+    styled_column, STATE_FR_COLOR, copy_button,
 )
 
 st.set_page_config(page_title="Volume de données · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -48,27 +48,16 @@ with c4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Lecture du general vers le granulaire : le DAG d'abord (a gauche), ses
-# taches ensuite (a droite) — un DAG est un ensemble de taches. Chaque
-# carte a son propre reglage, recolore a la teinte de son graphique.
+# Lecture du general vers le granulaire : le DAG d'abord.
 n_dags_vol = int((dag_summary["Total_Rows"] > 0).sum())
 
-col_l, col_r = st.columns([1, 1], gap="medium")
-with col_l:
-    with st.container(border=True):
-        section_title(st, "Répartition par DAG", color="#05AEEF",
-                      right="proportionnel · cliquer un DAG pour voir ses tâches")
-        with st.container(key="slider-blue-volume"):
-            top_dags = st.slider("Nombre de DAGs à afficher", min_value=5, max_value=n_dags_vol,
-                                 value=n_dags_vol, step=1, key="vol_top_dags")
-        st.plotly_chart(rows_treemap(df, top_n=top_dags), width="stretch")
-with col_r:
-    with st.container(border=True):
-        section_title(st, "Top tâches par volume", color="#EF4444", right="proportionnel")
-        with st.container(key="slider-red-volume"):
-            top_n = st.slider("Nombre de tâches à afficher", min_value=5, max_value=40,
-                              value=20, step=5, key="vol_top_tasks")
-        st.plotly_chart(tasks_treemap(df, top_n=top_n), width="stretch")
+with st.container(border=True):
+    section_title(st, "Répartition par DAG", color="#05AEEF",
+                  right="proportionnel · cliquer un DAG pour voir ses tâches")
+    with st.container(key="slider-blue-volume"):
+        top_dags = st.slider("Nombre de DAGs à afficher", min_value=5, max_value=n_dags_vol,
+                             value=n_dags_vol, step=1, key="vol_top_dags")
+    st.plotly_chart(rows_treemap(df, top_n=top_dags), width="stretch")
 
 # Comportements de clic des deux treemaps (retour false depuis
 # plotly_treemapclick = annule le zoom par defaut de plotly) :
@@ -134,7 +123,16 @@ with st.container(border=True):
     has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
 
-    dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
+    col_f1, col_f2 = st.columns([3, 1])
+    with col_f1:
+        dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
+    with col_f2:
+        if dag_filter:
+            display_copy = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
+        else:
+            display_copy = has_rows
+        copy_button(st, display_copy[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy(), key="copy_vol_table")
+
     if dag_filter:
         has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
 

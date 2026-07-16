@@ -146,6 +146,19 @@ def apply_theme(st):
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
+def copy_button(st, dataframe, key="copy_btn"):
+    """Bouton de téléchargement CSV d'un DataFrame avec icône de copie.
+    Affiche en haut à côté des filtres pour capturer/copier le tableau."""
+    csv = dataframe.to_csv(index=False)
+    st.download_button(
+        label="⎘ Copier",
+        data=csv,
+        file_name="tableau.csv",
+        mime="text/csv",
+        key=key,
+    )
+
+
 def page_header(st, title, subtitle="", crumb=None, right_html=""):
     """En-tête de page avec breadcrumb, identique au header du mockup.
     `right_html` : bloc optionnel (spans uniquement) aligne a droite dans
