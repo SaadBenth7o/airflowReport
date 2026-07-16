@@ -232,27 +232,14 @@ def chart_config(title, export_width=None):
     }
 
 
-# Icone Lucide (meme convention 24x24 stroke que _ICON_PATHS) injectee dans
-# le modebar Plotly a la place de l'appareil photo par defaut du bouton
-# telecharger (une camera ne dit pas 'PNG').
-_DOWNLOAD_ICON_SVG = (
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
-    'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
-    'stroke-linejoin="round" style="display:block;margin:auto;">'
-    '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>'
-    '<circle cx="8.5" cy="8.5" r="1.5"/>'
-    '<polyline points="21 15 16 10 5 21"/>'
-    '</svg>'
-)
-
-
 def plotly_export_js(st):
     """Injecte un script partage par toutes les pages a graphiques Plotly :
     1. Remplace le bouton natif 'telecharger en PNG' de Plotly par un
-       CLONE (icone 'image' au lieu de l'appareil photo, et un clic pris
-       en charge par notre propre gestionnaire) — necessaire pour le
-       point 2 : le clic natif ne laisse aucun moyen d'attendre la fin
-       d'un redessin avant la capture de l'image.
+       CLONE VISUELLEMENT IDENTIQUE (meme icone camera d'origine, garde
+       telle quelle) dont le clic est pris en charge par notre propre
+       gestionnaire — necessaire pour le point 2 : le clic natif ne
+       laisse aucun moyen d'attendre la fin d'un redessin avant la
+       capture de l'image.
     2. Pour les graphiques marques meta='cih-donut-export' (donuts sans
        legende native a l'ecran, cf. utils.charts._donut) : le clic sur
        'telecharger' active la legende (Plotly.restyle POUR LA TRACE +
@@ -299,8 +286,9 @@ def plotly_export_js(st):
                     // Remplace le bouton telecharger natif par un clone : on y
                     // attache notre propre clic (le clic natif ne peut pas
                     // etre mis en pause pour attendre un redessin de legende).
+                    // L'icone (camera Plotly d'origine) est volontairement
+                    // conservee telle quelle — cloneNode() la recopie deja.
                     const freshBtn = dlBtn.cloneNode(true);
-                    freshBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
                     freshBtn.__cihReplaced = true;
                     freshBtn.addEventListener('click', async (e) => {{
                         e.preventDefault();
