@@ -259,16 +259,20 @@ _FULLSCREEN_ICON_SVG = (
 
 def plotly_export_js(st):
     """Injecte un script partage par toutes les pages a graphiques Plotly :
-    1. Remplace l'icone 'appareil photo' du bouton telecharger PNG par une
-       icone 'image' plus explicite (remplacement complet du SVG interne,
-       pas seulement le path — evite de dependre de la matrice de
-       transformation interne de Plotly, propre a son systeme d'icones).
+    1. Remplace le bouton natif 'telecharger en PNG' de Plotly par un
+       CLONE (icone 'image' au lieu de l'appareil photo, et un clic pris
+       en charge par notre propre gestionnaire) — necessaire pour le
+       point 2 : le clic natif ne laisse aucun moyen d'attendre la fin
+       d'un redessin avant la capture de l'image.
     2. Pour les graphiques marques meta='cih-donut-export' (donuts sans
-       legende native a l'ecran, cf. utils.charts._donut) : ajoute une
-       legende native a droite juste avant l'export PNG (evenement
-       plotly_beforeexport de Plotly.js) puis la retire juste apres
-       (plotly_afterexport), pour que l'image telechargee reste lisible
-       sans dupliquer la legende HTML CIH affichee a l'ecran.
+       legende native a l'ecran, cf. utils.charts._donut) : le clic sur
+       'telecharger' active la legende (Plotly.restyle), ATTEND la fin
+       du redessin (promesse), capture l'image (Plotly.downloadImage),
+       puis desactive a nouveau la legende. L'evenement natif
+       plotly_beforeexport ne convient pas ici : il se declenche de
+       facon synchrone et Plotly capture l'image avant la fin du
+       redessin declenche par notre restyle (legende absente de l'export
+       malgre tout) — d'ou la prise de controle complete du clic.
     3. Ajoute un bouton 'plein ecran' fait maison, clone a cote du bouton
        telecharger DANS LE MEME groupe du modebar Plotly (au lieu du
        bouton plein ecran natif de Streamlit, affiche dans un calque HTML
@@ -277,12 +281,15 @@ def plotly_export_js(st):
        plus de decalage entre deux systemes de positionnement distincts.
        Le bouton plein ecran natif de Streamlit est masque (juste pour
        CE graphique, pas globalement : les tableaux gardent le leur).
-    Rejoue a intervalle regulier (Streamlit recree le modebar a chaque
-    rerun d'un graphique, ex: changement de slider) ; le remplacement
-    d'icone et la legende d'export s'appuient sur window.parent.Plotly
-    (confirme expose par le bundle Streamlit) mais N'ONT PAS ETE TESTES
-    EN NAVIGATEUR (session sans verification navigateur) — reperer ici
-    en cas de souci sur l'icone, le bouton plein ecran ou la legende
+       Masquage rejoue SANS LIMITE DE TEMPS (pas de coupure a 20s) car
+       ce toolbar Streamlit ne se monte dans le DOM qu'au survol de la
+       souris — le masquer une seule fois au chargement de la page ne
+       suffit pas, il faut le detecter des qu'il apparait, potentiellement
+       longtemps apres l'ouverture de la page.
+    S'appuie sur window.parent.Plotly (confirme expose par le bundle
+    Streamlit) mais N'A PAS ETE TESTE EN NAVIGATEUR (session sans
+    verification navigateur) — reperer ici en cas de souci sur l'icone,
+    le bouton plein ecran, le double bouton plein ecran ou la legende
     exportee des donuts.
     """
     st.components.v1.html(
@@ -299,31 +306,50 @@ def plotly_export_js(st):
         const bind = () => {{
             const plots = window.parent.document.querySelectorAll('.js-plotly-plot');
             plots.forEach(p => {{
-                const meta = p._fullLayout && p._fullLayout.meta;
-                if (meta === 'cih-donut-export' && !p.__cihExportBound) {{
-                    p.on('plotly_beforeexport', () => {{
-                        const PL = window.parent.Plotly || window.Plotly;
-                        if (!PL) return;
-                        PL.restyle(p, {{showlegend: true}}, [0]);
-                        PL.relayout(p, {{
-                            'legend.x': 1.02, 'legend.y': 0.5, 'legend.xanchor': 'left',
-                            margin: {{l: 10, r: 170, t: 10, b: 10}},
-                        }});
-                    }});
-                    p.on('plotly_afterexport', () => {{
-                        const PL = window.parent.Plotly || window.Plotly;
-                        if (!PL) return;
-                        PL.restyle(p, {{showlegend: false}}, [0]);
-                        PL.relayout(p, {{margin: {{l: 10, r: 10, t: 10, b: 10}}}});
-                    }});
-                    p.__cihExportBound = true;
-                }}
                 try {{
-                    const dlBtn = p.querySelector('.modebar-btn[data-title*="Download plot"]');
-                    if (dlBtn && !dlBtn.__cihIconSwapped) {{
-                        dlBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
-                        dlBtn.__cihIconSwapped = true;
+                    const meta = p._fullLayout && p._fullLayout.meta;
+                    const isDonut = meta === 'cih-donut-export';
+                    let dlBtn = p.querySelector('.modebar-btn[data-title*="Download plot"]');
+
+                    // Remplace le bouton telecharger natif par un clone : on y
+                    // attache notre propre clic (le clic natif ne peut pas
+                    // etre mis en pause pour attendre un redessin de legende).
+                    if (dlBtn && !dlBtn.__cihReplaced) {{
+                        const freshBtn = dlBtn.cloneNode(true);
+                        freshBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
+                        freshBtn.__cihReplaced = true;
+                        freshBtn.addEventListener('click', async (e) => {{
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const PL = window.parent.Plotly || window.Plotly;
+                            if (!PL || !PL.downloadImage) return;
+                            const opts = (p._context && p._context.toImageButtonOptions) || {{}};
+                            const imgOpts = {{format: opts.format || 'png', filename: opts.filename || 'plot'}};
+                            if (opts.width)  imgOpts.width  = opts.width;
+                            if (opts.height) imgOpts.height = opts.height;
+                            try {{
+                                if (isDonut) {{
+                                    await PL.restyle(p, {{showlegend: true}}, [0]);
+                                    await PL.relayout(p, {{
+                                        'legend.x': 1.02, 'legend.y': 0.5, 'legend.xanchor': 'left',
+                                        margin: {{l: 10, r: 170, t: 32, b: 10}},
+                                    }});
+                                }}
+                                await PL.downloadImage(p, imgOpts);
+                            }} finally {{
+                                if (isDonut) {{
+                                    await PL.restyle(p, {{showlegend: false}}, [0]);
+                                    await PL.relayout(p, {{margin: {{l: 10, r: 10, t: 32, b: 10}}}});
+                                }}
+                            }}
+                        }});
+                        dlBtn.parentNode.replaceChild(freshBtn, dlBtn);
+                        dlBtn = freshBtn;
                     }}
+
+                    // Bouton plein ecran maison, clone du bouton telecharger
+                    // (deja "propre" — cloneNode ne recopie pas les gestionnaires
+                    // d'evenements) : meme groupe du modebar = alignement garanti.
                     const group = dlBtn && dlBtn.closest('.modebar-group');
                     if (dlBtn && group && !group.querySelector('.cih-fullscreen-btn')) {{
                         const fsBtn = dlBtn.cloneNode(true);
@@ -338,18 +364,20 @@ def plotly_export_js(st):
                         }});
                         group.insertBefore(fsBtn, dlBtn);
                     }}
-                    // Le bouton plein ecran natif de Streamlit fait double
-                    // emploi avec celui ci-dessus : masque uniquement pour
-                    // CE graphique (pas globalement — les tableaux gardent
-                    // le leur, avec recherche/export CSV).
+
+                    // Bouton plein ecran natif de Streamlit : fait double emploi
+                    // avec celui ci-dessus. Il ne se monte dans le DOM qu'au
+                    // survol — pas de limite de temps sur ce nettoyage, sinon
+                    // un survol tardif le laisserait s'afficher en double.
                     const container = p.closest('[data-testid="stElementContainer"]');
                     const nativeToolbar = container && container.querySelector('[data-testid="stElementToolbar"]');
-                    if (nativeToolbar) {{ nativeToolbar.style.display = 'none'; }}
+                    if (nativeToolbar && nativeToolbar.style.display !== 'none') {{
+                        nativeToolbar.style.display = 'none';
+                    }}
                 }} catch (e) {{}}
             }});
         }};
-        const iv = setInterval(bind, 500);
-        setTimeout(() => clearInterval(iv), 20000);
+        setInterval(bind, 400);
         </script>
         """,
         height=0,
