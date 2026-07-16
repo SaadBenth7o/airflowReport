@@ -24,9 +24,10 @@ def _load_b64(filename):
         return ""
 
 
-# Le logo CIH (assets/cih-logo.png) sert de favicon via le parametre
-# page_icon de st.set_page_config sur chaque page — le pinwheel Airflow
-# donnait l'impression d'etre dans l'app Airflow elle-meme.
+# Favicon volontairement VIDE (assets/transparent.png, pixel transparent)
+# via page_icon de st.set_page_config sur chaque page : aucun logo dans
+# l'onglet — le pinwheel Airflow pretait a confusion, et sans page_icon
+# Streamlit remettrait son propre logo.
 _LOGO_B64 = _load_b64("cih-logo.png")
 
 # ── Palette ──────────────────────────────────────────────────────────────

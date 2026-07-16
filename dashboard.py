@@ -10,7 +10,7 @@ from utils.theme import (
 
 st.set_page_config(
     page_title="Airflow Reports",
-    page_icon="assets/cih-logo.png",
+    page_icon="assets/transparent.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )

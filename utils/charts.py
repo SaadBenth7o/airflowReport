@@ -24,6 +24,22 @@ STATE_LABELS_FR = {
 # Libelle FR -> couleur, pour les graphiques dont la legende affiche l'etat.
 STATE_FR_COLORS = {STATE_LABELS_FR[k]: STATE_COLORS[k] for k in STATE_LABELS_FR}
 
+# Palette qualitative pour les tuiles TACHES du treemap drill-down :
+# teintes franches et bien separees, lisibles meme sur de tres petites
+# tuiles (texte blanc). Attribuees en rotation au sein de chaque DAG.
+TASK_PALETTE = [
+    "#05AEEF",  # bleu CIH
+    "#F0481C",  # orange CIH
+    "#8B5CF6",  # violet
+    "#22C55E",  # vert
+    "#EC4899",  # rose
+    "#F59E0B",  # ambre
+    "#14B8A6",  # sarcelle
+    "#6366F1",  # indigo
+    "#A16207",  # brun
+    "#0284C7",  # bleu fonce
+]
+
 
 def _apply(fig, height=360):
     fig.update_layout(**_LAYOUT, height=height)
@@ -222,13 +238,18 @@ def rows_treemap(df, top_n=None):
 
     Construit en go.Treemap a deux niveaux (DAG -> taches) : px.treemap
     colorerait les parents par moyenne ponderee, alors qu'on veut garder
-    'plus fonce = plus de volume' aussi bien pour les DAGs (leur total)
-    que pour les taches (leur propre volume)."""
+    'plus fonce = plus de volume' pour les DAGs (leur total). Les TACHES,
+    elles, recoivent des couleurs franches qui alternent : un degrade
+    bleu unique rendait les petites tuiles indistinctes les unes des
+    autres au niveau drill-down."""
     src = df[df["Rows_Affected_Total"] > 0].copy()
     dag_totals = src.groupby("DAG_ID")["Rows_Affected_Total"].sum().sort_values(ascending=False)
     if top_n:
         dag_totals = dag_totals.head(top_n)
         src = src[src["DAG_ID"].isin(dag_totals.index)]
+    # Au sein d'un DAG, les grosses taches d'abord : les tuiles voisines
+    # prennent ainsi des couleurs successives de la palette.
+    src = src.sort_values(["DAG_ID", "Rows_Affected_Total"], ascending=[True, False])
 
     # Racine EXPLICITE : sans elle, la racine implicite n'a ni libelle ni
     # valeur — le pathbar (bandeau de retour) s'affiche gris fonce #444 et
@@ -239,9 +260,21 @@ def rows_treemap(df, top_n=None):
     labels  = ["Tous les DAGs"] + list(dag_totals.index) + src["Task_ID"].tolist()
     parents = [""] + [ROOT] * len(dag_totals) + src["DAG_ID"].tolist()
     values  = [int(dag_totals.sum())] + [int(v) for v in dag_totals.values] + src["Rows_Affected_Total"].tolist()
-    # Meme echelle pour DAGs (total) et taches (volume propre) ; la racine
-    # est forcee a 0 = teinte la plus claire, pour un pathbar lisible.
-    colors  = [0] + values[1:]
+
+    # Couleurs explicites (chaines hex) plutot que colorscale numerique,
+    # pour melanger deux logiques :
+    #  - DAGs : degrade bleu 'plus fonce = plus de volume' (vue initiale) ;
+    #  - taches : palette qualitative en rotation dans chaque DAG, afin que
+    #    chaque tuile se distingue de ses voisines meme minuscule.
+    def _blend(t):
+        lo, hi = (0xE0, 0xF2, 0xFE), (0x05, 0xAE, 0xEF)
+        return "#%02X%02X%02X" % tuple(round(lo[i] + (hi[i] - lo[i]) * t) for i in range(3))
+
+    vmax = float(dag_totals.max()) or 1.0
+    dag_colors = [_blend(v / vmax) for v in dag_totals.values]
+    task_rank = src.groupby("DAG_ID").cumcount()
+    task_colors = [TASK_PALETTE[i % len(TASK_PALETTE)] for i in task_rank]
+    colors = ["#FFFFFF"] + dag_colors + task_colors
 
     fig = go.Figure(go.Treemap(
         ids=ids, labels=labels, parents=parents, values=values,
@@ -255,7 +288,6 @@ def rows_treemap(df, top_n=None):
         maxdepth=2,
         marker=dict(
             colors=colors,
-            colorscale=[[0, "#E0F2FE"], [1, CIH_BLUE]],
             cornerradius=6,
             line=dict(color="white", width=2),
         ),

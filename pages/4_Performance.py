@@ -7,7 +7,7 @@ from utils.theme import (
     styled_column, STATE_FR_COLOR,
 )
 
-st.set_page_config(page_title="Performance · Airflow", page_icon="assets/cih-logo.png", layout="wide")
+st.set_page_config(page_title="Performance · Airflow", page_icon="assets/transparent.png", layout="wide")
 apply_theme(st)
 
 df          = load_data()
