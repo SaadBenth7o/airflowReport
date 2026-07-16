@@ -44,14 +44,14 @@ with col_l:
         with c_donut:
             # height=300 : aligne le bas de cette carte sur "DAGs par
             # heure de demarrage" (mesure reelle).
-            st.plotly_chart(schedule_pie(df, height=300), use_container_width=True)
+            st.plotly_chart(schedule_pie(df, height=300), width="stretch")
         with c_legend:
             st.markdown("<div style='padding-top:20px;'></div>", unsafe_allow_html=True)
             donut_legend(st, schedule_distribution_segments(df))
 with col_r:
     with st.container(border=True):
         section_title(st, "DAGs (journaliers) par heure de démarrage (UTC)", color="#05AEEF")
-        st.plotly_chart(schedule_hour_bar(df), use_container_width=True)
+        st.plotly_chart(schedule_hour_bar(df), width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -117,7 +117,7 @@ with st.container(border=True):
     )
     st.dataframe(
         sty,
-        use_container_width=True,
+        width="stretch",
         height=min(620, 38 * len(dag_sched_display) + 40),
         hide_index=True,
     )

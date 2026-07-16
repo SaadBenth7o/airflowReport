@@ -201,7 +201,7 @@ with col_l:
         with c_donut:
             # height=340 : cale le bas de cette carte sur celui de la
             # carte voisine "DAGs avec le plus d'echecs" (mesure reelle).
-            st.plotly_chart(state_donut(df, height=340), use_container_width=True)
+            st.plotly_chart(state_donut(df, height=340), width="stretch")
         with c_legend:
             st.markdown("<div style='padding-top:24px;'></div>", unsafe_allow_html=True)
             donut_legend(st, state_distribution_segments(df))
@@ -213,7 +213,7 @@ with col_r:
         if failed_dags.empty:
             st.success("Aucun DAG en échec.")
         else:
-            st.plotly_chart(dag_failures_bar(dag_summary), use_container_width=True)
+            st.plotly_chart(dag_failures_bar(dag_summary), width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 

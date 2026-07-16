@@ -102,7 +102,7 @@ with col_list:
                 else:
                     label = (f":{dot}[●] **{dag_id}**  \n"
                              f"{meta}:{rate_c}[{d['Success_Rate']:.0f}%]")
-                if st.button(label, key=f"dagbtn_{dag_id}", use_container_width=True,
+                if st.button(label, key=f"dagbtn_{dag_id}", width="stretch",
                              type="primary" if selected else "secondary"):
                     st.session_state["dag_explorer_sel"] = dag_id
                     st.rerun()
@@ -154,11 +154,11 @@ with col_detail:
     with col_comp:
         with st.container(border=True):
             section_title(st, "Composition des tâches", color="#05AEEF")
-            st.plotly_chart(dag_task_composition(df, sel_id, height=320), use_container_width=True)
+            st.plotly_chart(dag_task_composition(df, sel_id, height=320), width="stretch")
     with col_gauge:
         with st.container(border=True):
             section_title(st, "Fiabilité", color="#22C55E")
-            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"], height=320), use_container_width=True)
+            st.plotly_chart(success_rate_gauge(dag_row["Success_Rate"], height=320), width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -172,7 +172,7 @@ with st.container(border=True):
     task_display["Rows_Affected_Total"] = task_display["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
     task_display.columns = ["Tâche", "Opérateur", "Script", "État", "Dernier run", "Durée", "Lignes"]
     st.dataframe(
-        styled_column(task_display, "État", STATE_FR_COLOR), use_container_width=True,
+        styled_column(task_display, "État", STATE_FR_COLOR), width="stretch",
         height=min(500, 38 * len(task_display) + 40),
         hide_index=True,
     )

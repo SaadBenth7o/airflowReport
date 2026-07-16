@@ -48,7 +48,7 @@ all_bad = df[df["Task_State"].isin(["failed", "upstream_failed"])].dropna(subset
 if not all_bad.empty:
     with st.container(border=True):
         section_title(st, "Timeline des échecs par DAG", color="#EF4444")
-        st.plotly_chart(failures_timeline(df), use_container_width=True)
+        st.plotly_chart(failures_timeline(df), width="stretch")
     st.markdown("<br>", unsafe_allow_html=True)
 
 with st.container(border=True):
@@ -72,7 +72,7 @@ with st.container(border=True):
         if dag_filter:
             display = display[display["DAG"].isin(dag_filter)]
         st.dataframe(
-            display, use_container_width=True,
+            display, width="stretch",
             height=min(580, 38 * len(display) + 40),
             column_config={"Script": st.column_config.TextColumn("Script .sh")},
             hide_index=True,
@@ -93,7 +93,7 @@ with st.container(border=True):
                 dag_fail_counts.rename(columns={
                     "DAG_ID": "DAG", "Echecs": "Tâches en échec", "Dernier_run": "Dernier run",
                 }),
-                use_container_width=True, hide_index=True, height=220,
+                width="stretch", hide_index=True, height=220,
             )
             st.markdown("---")
         show_failure_table(failed_df, "failed")

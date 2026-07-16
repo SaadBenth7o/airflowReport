@@ -62,7 +62,7 @@ with st.container(border=True):
     )
     scale = {"Échelle par classe": "classes",
              "Échelle logarithmique": "log"}[scale_label]
-    st.plotly_chart(duration_histogram(df, scale=scale), use_container_width=True)
+    st.plotly_chart(duration_histogram(df, scale=scale), width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -73,13 +73,13 @@ with col_l:
         section_title(st, "DAGs les plus longs", color="#05AEEF", right="durée cumulée")
         with st.container(key="slider-blue-perf"):
             top_dags = st.slider("Nombre de DAGs", 5, 30, 15, 5, key="perf_top_dags")
-        st.plotly_chart(duration_by_dag(df, top_n=top_dags), use_container_width=True)
+        st.plotly_chart(duration_by_dag(df, top_n=top_dags), width="stretch")
 with col_r:
     with st.container(border=True):
         section_title(st, "Tâches les plus longues", color="#EF4444")
         with st.container(key="slider-red-perf"):
             top_n = st.slider("Nombre de tâches", 5, 30, 15, 5, key="perf_top_tasks")
-        st.plotly_chart(slowest_tasks_bar(df, top_n=top_n), use_container_width=True)
+        st.plotly_chart(slowest_tasks_bar(df, top_n=top_n), width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -105,7 +105,7 @@ with st.container(border=True):
         perf_display.columns = ["DAG", "Tâche", "État", "Durée", "Min", "Dernier run"]
         st.dataframe(
             styled_column(perf_display.drop(columns=["Min"]), "État", STATE_FR_COLOR),
-            use_container_width=True,
+            width="stretch",
             height=min(500, 38 * len(perf_display) + 40),
             hide_index=True,
         )

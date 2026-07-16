@@ -61,14 +61,14 @@ with col_l:
         with st.container(key="slider-blue-volume"):
             top_dags = st.slider("Nombre de DAGs à afficher", min_value=5, max_value=n_dags_vol,
                                  value=n_dags_vol, step=1, key="vol_top_dags")
-        st.plotly_chart(rows_treemap(df, top_n=top_dags), use_container_width=True)
+        st.plotly_chart(rows_treemap(df, top_n=top_dags), width="stretch")
 with col_r:
     with st.container(border=True):
         section_title(st, "Top tâches par volume", color="#EF4444", right="proportionnel")
         with st.container(key="slider-red-volume"):
             top_n = st.slider("Nombre de tâches à afficher", min_value=5, max_value=40,
                               value=20, step=5, key="vol_top_tasks")
-        st.plotly_chart(tasks_treemap(df, top_n=top_n), use_container_width=True)
+        st.plotly_chart(tasks_treemap(df, top_n=top_n), width="stretch")
 
 # Comportements de clic des deux treemaps (retour false depuis
 # plotly_treemapclick = annule le zoom par defaut de plotly) :
@@ -145,7 +145,7 @@ with st.container(border=True):
     # Pas de width= force : les colonnes s'auto-dimensionnent sur leur
     # contenu, plus de va-et-vient horizontal a la souris.
     st.dataframe(
-        styled_column(display, "État", STATE_FR_COLOR), use_container_width=True,
+        styled_column(display, "État", STATE_FR_COLOR), width="stretch",
         height=min(580, 38 * len(display) + 40),
         hide_index=True,
     )
