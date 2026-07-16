@@ -232,10 +232,9 @@ def chart_config(title, export_width=None):
     }
 
 
-# Icones Lucide (memes conventions 24x24 stroke que _ICON_PATHS) injectees
-# dans le modebar Plotly : 'image' remplace l'appareil photo par defaut du
-# bouton telecharger (une camera ne dit pas 'PNG') ; 'maximize' habille le
-# bouton plein ecran maison (voir plotly_export_js).
+# Icone Lucide (meme convention 24x24 stroke que _ICON_PATHS) injectee dans
+# le modebar Plotly a la place de l'appareil photo par defaut du bouton
+# telecharger (une camera ne dit pas 'PNG').
 _DOWNLOAD_ICON_SVG = (
     '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
     'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
@@ -243,16 +242,6 @@ _DOWNLOAD_ICON_SVG = (
     '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>'
     '<circle cx="8.5" cy="8.5" r="1.5"/>'
     '<polyline points="21 15 16 10 5 21"/>'
-    '</svg>'
-)
-_FULLSCREEN_ICON_SVG = (
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
-    'stroke="rgba(0,0,0,0.55)" stroke-width="2" stroke-linecap="round" '
-    'stroke-linejoin="round" style="display:block;margin:auto;">'
-    '<polyline points="15 3 21 3 21 9"/>'
-    '<polyline points="9 21 3 21 3 9"/>'
-    '<line x1="21" y1="3" x2="14" y2="10"/>'
-    '<line x1="3" y1="21" x2="10" y2="14"/>'
     '</svg>'
 )
 
@@ -266,43 +255,38 @@ def plotly_export_js(st):
        d'un redessin avant la capture de l'image.
     2. Pour les graphiques marques meta='cih-donut-export' (donuts sans
        legende native a l'ecran, cf. utils.charts._donut) : le clic sur
-       'telecharger' active la legende (Plotly.restyle), ATTEND la fin
-       du redessin (promesse), capture l'image (Plotly.downloadImage),
-       puis desactive a nouveau la legende. L'evenement natif
-       plotly_beforeexport ne convient pas ici : il se declenche de
-       facon synchrone et Plotly capture l'image avant la fin du
-       redessin declenche par notre restyle (legende absente de l'export
-       malgre tout) — d'ou la prise de controle complete du clic.
-    3. Ajoute un bouton 'plein ecran' fait maison, clone a cote du bouton
-       telecharger DANS LE MEME groupe du modebar Plotly (au lieu du
-       bouton plein ecran natif de Streamlit, affiche dans un calque HTML
-       separe) : les deux boutons sont ainsi litteralement les memes
-       elements de la meme barre d'outils, alignes par construction —
-       plus de decalage entre deux systemes de positionnement distincts.
-       Le bouton plein ecran natif de Streamlit est masque (juste pour
-       CE graphique, pas globalement : les tableaux gardent le leur).
-       Masquage rejoue SANS LIMITE DE TEMPS (pas de coupure a 20s) car
-       ce toolbar Streamlit ne se monte dans le DOM qu'au survol de la
-       souris — le masquer une seule fois au chargement de la page ne
-       suffit pas, il faut le detecter des qu'il apparait, potentiellement
-       longtemps apres l'ouverture de la page.
-    S'appuie sur window.parent.Plotly (confirme expose par le bundle
-    Streamlit) mais N'A PAS ETE TESTE EN NAVIGATEUR (session sans
-    verification navigateur) — reperer ici en cas de souci sur l'icone,
-    le bouton plein ecran, le double bouton plein ecran ou la legende
-    exportee des donuts.
+       'telecharger' active la legende (Plotly.restyle POUR LA TRACE +
+       Plotly.relayout POUR LE LAYOUT — les deux niveaux sont necessaires,
+       showlegend=false au niveau layout bloque toute legende quel que
+       soit le reglage de la trace), ATTEND la fin du redessin (promesse),
+       capture l'image (Plotly.downloadImage), puis desactive a nouveau
+       la legende. L'evenement natif plotly_beforeexport ne convient pas
+       ici : il se declenche de facon synchrone et Plotly capture l'image
+       avant la fin du redessin declenche par notre restyle — d'ou la
+       prise de controle complete du clic.
+
+    Le bouton 'plein ecran' n'est PAS gere ici : ce n'est pas un calque
+    HTML separe comme suppose au premier essai, mais un second bouton
+    NATIF DU MODEBAR PLOTLY LUI-MEME, ajoute par Streamlit via
+    config.modeBarButtonsToAdd = [{{name: "Fullscreen", ...}}] (confirme
+    en lisant le bundle JS de Streamlit installe). Il vit donc DEJA dans
+    le meme conteneur .modebar que le bouton telecharger, aligne par
+    Plotly lui-meme — inutile de le cloner ou de masquer quoi que ce
+    soit : il suffit de ne PAS le retirer de modeBarButtonsToRemove (cf.
+    chart_config). Le clone qu'on avait ajoute ici avant provoquait
+    justement le doublon signale.
+
+    VERIFIE EN NAVIGATEUR REEL (Chrome headless + CDP, 16/07/2026) sur
+    une instance Streamlit separee (port 8510, sans toucher a celle de
+    l'utilisateur) : un seul bouton telecharger + un seul bouton plein
+    ecran dans le modebar (plus de doublon) ; clic reel sur le bouton
+    telecharger d'un donut -> fichier PNG telecharge et ouvert, legende
+    bien presente a droite ; clic sur un graphique non-donut -> fichier
+    telecharge normalement, sans regression.
     """
     st.components.v1.html(
         f"""
         <script>
-        function cihToggleFullscreen(el) {{
-            const doc = el.ownerDocument;
-            if (doc.fullscreenElement === el) {{
-                (doc.exitFullscreen || doc.webkitExitFullscreen || function(){{}}).call(doc);
-            }} else {{
-                (el.requestFullscreen || el.webkitRequestFullscreen || function(){{}}).call(el);
-            }}
-        }}
         const bind = () => {{
             const plots = window.parent.document.querySelectorAll('.js-plotly-plot');
             plots.forEach(p => {{
@@ -310,70 +294,47 @@ def plotly_export_js(st):
                     const meta = p._fullLayout && p._fullLayout.meta;
                     const isDonut = meta === 'cih-donut-export';
                     let dlBtn = p.querySelector('.modebar-btn[data-title*="Download plot"]');
+                    if (!dlBtn || dlBtn.__cihReplaced) return;
 
                     // Remplace le bouton telecharger natif par un clone : on y
                     // attache notre propre clic (le clic natif ne peut pas
                     // etre mis en pause pour attendre un redessin de legende).
-                    if (dlBtn && !dlBtn.__cihReplaced) {{
-                        const freshBtn = dlBtn.cloneNode(true);
-                        freshBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
-                        freshBtn.__cihReplaced = true;
-                        freshBtn.addEventListener('click', async (e) => {{
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const PL = window.parent.Plotly || window.Plotly;
-                            if (!PL || !PL.downloadImage) return;
-                            const opts = (p._context && p._context.toImageButtonOptions) || {{}};
-                            const imgOpts = {{format: opts.format || 'png', filename: opts.filename || 'plot'}};
-                            if (opts.width)  imgOpts.width  = opts.width;
-                            if (opts.height) imgOpts.height = opts.height;
-                            try {{
-                                if (isDonut) {{
-                                    await PL.restyle(p, {{showlegend: true}}, [0]);
-                                    await PL.relayout(p, {{
-                                        'legend.x': 1.02, 'legend.y': 0.5, 'legend.xanchor': 'left',
-                                        margin: {{l: 10, r: 170, t: 32, b: 10}},
-                                    }});
-                                }}
-                                await PL.downloadImage(p, imgOpts);
-                            }} finally {{
-                                if (isDonut) {{
-                                    await PL.restyle(p, {{showlegend: false}}, [0]);
-                                    await PL.relayout(p, {{margin: {{l: 10, r: 10, t: 32, b: 10}}}});
-                                }}
+                    const freshBtn = dlBtn.cloneNode(true);
+                    freshBtn.innerHTML = {_DOWNLOAD_ICON_SVG!r};
+                    freshBtn.__cihReplaced = true;
+                    freshBtn.addEventListener('click', async (e) => {{
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const PL = window.parent.Plotly || window.Plotly;
+                        if (!PL || !PL.downloadImage) return;
+                        const opts = (p._context && p._context.toImageButtonOptions) || {{}};
+                        const imgOpts = {{format: opts.format || 'png', filename: opts.filename || 'plot'}};
+                        if (opts.width)  imgOpts.width  = opts.width;
+                        if (opts.height) imgOpts.height = opts.height;
+                        try {{
+                            if (isDonut) {{
+                                // showlegend doit basculer aux DEUX niveaux : la
+                                // trace (_donut() la met a false individuellement)
+                                // ET le layout (false = interrupteur general qui
+                                // bloque toute legende quel que soit le reglage
+                                // de la trace) — verifie en navigateur, le
+                                // legend DOM ne se cree pas sans le second.
+                                await PL.restyle(p, {{showlegend: true}}, [0]);
+                                await PL.relayout(p, {{
+                                    showlegend: true,
+                                    'legend.x': 1.02, 'legend.y': 0.5, 'legend.xanchor': 'left',
+                                    margin: {{l: 10, r: 170, t: 32, b: 10}},
+                                }});
                             }}
-                        }});
-                        dlBtn.parentNode.replaceChild(freshBtn, dlBtn);
-                        dlBtn = freshBtn;
-                    }}
-
-                    // Bouton plein ecran maison, clone du bouton telecharger
-                    // (deja "propre" — cloneNode ne recopie pas les gestionnaires
-                    // d'evenements) : meme groupe du modebar = alignement garanti.
-                    const group = dlBtn && dlBtn.closest('.modebar-group');
-                    if (dlBtn && group && !group.querySelector('.cih-fullscreen-btn')) {{
-                        const fsBtn = dlBtn.cloneNode(true);
-                        fsBtn.classList.add('cih-fullscreen-btn');
-                        fsBtn.setAttribute('data-title', 'Plein écran');
-                        fsBtn.innerHTML = {_FULLSCREEN_ICON_SVG!r};
-                        fsBtn.addEventListener('click', (e) => {{
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const wrapper = p.closest('[data-testid="stElementContainer"]') || p;
-                            cihToggleFullscreen(wrapper);
-                        }});
-                        group.insertBefore(fsBtn, dlBtn);
-                    }}
-
-                    // Bouton plein ecran natif de Streamlit : fait double emploi
-                    // avec celui ci-dessus. Il ne se monte dans le DOM qu'au
-                    // survol — pas de limite de temps sur ce nettoyage, sinon
-                    // un survol tardif le laisserait s'afficher en double.
-                    const container = p.closest('[data-testid="stElementContainer"]');
-                    const nativeToolbar = container && container.querySelector('[data-testid="stElementToolbar"]');
-                    if (nativeToolbar && nativeToolbar.style.display !== 'none') {{
-                        nativeToolbar.style.display = 'none';
-                    }}
+                            await PL.downloadImage(p, imgOpts);
+                        }} finally {{
+                            if (isDonut) {{
+                                await PL.restyle(p, {{showlegend: false}}, [0]);
+                                await PL.relayout(p, {{showlegend: false, margin: {{l: 10, r: 10, t: 32, b: 10}}}});
+                            }}
+                        }}
+                    }});
+                    dlBtn.parentNode.replaceChild(freshBtn, dlBtn);
                 }} catch (e) {{}}
             }});
         }};
