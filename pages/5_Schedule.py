@@ -9,7 +9,7 @@ from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend,
 )
 
-st.set_page_config(page_title="Planification · Airflow", page_icon="assets/airflow-pin.png", layout="wide")
+st.set_page_config(page_title="Planification · Airflow", page_icon="assets/cih-logo.png", layout="wide")
 apply_theme(st)
 
 df          = load_data()

@@ -24,8 +24,9 @@ def _load_b64(filename):
         return ""
 
 
-# Le pinwheel Airflow (assets/airflow-pin.png) sert de favicon, via le
-# parametre page_icon de st.set_page_config sur chaque page.
+# Le logo CIH (assets/cih-logo.png) sert de favicon via le parametre
+# page_icon de st.set_page_config sur chaque page — le pinwheel Airflow
+# donnait l'impression d'etre dans l'app Airflow elle-meme.
 _LOGO_B64 = _load_b64("cih-logo.png")
 
 # ── Palette ──────────────────────────────────────────────────────────────
