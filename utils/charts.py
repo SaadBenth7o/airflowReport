@@ -301,7 +301,10 @@ def rows_treemap(df, top_n=None):
     # clic sur une tache RAMENE a la vue de tous les DAGs (au lieu de
     # zoomer sur la tache, sans interet).
     fig.update_layout(meta="cih-treemap-drill")
-    return _apply(fig, 380)
+    # Hauteur augmentee (380 -> 480) : la carte occupe desormais toute la
+    # largeur de la page (le treemap des taches a ete retire a cote), plus
+    # de hauteur donne plus de place aux tuiles les plus petites.
+    return _apply(fig, 480)
 
 
 # ---------- Performance ----------

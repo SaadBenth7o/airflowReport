@@ -5,7 +5,7 @@ from utils.data_loader import load_data, build_dag_summary
 from utils.charts import tasks_treemap, rows_treemap
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    styled_column, STATE_FR_COLOR, download_button, label_spacer, chart_config,
+    styled_column, STATE_FR_COLOR, download_button, align_bottom_row, chart_config,
 )
 
 st.set_page_config(page_title="Volume de données · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -37,14 +37,14 @@ with c1:
     kpi_card(st, "Total lignes traitées", fmt(total_rows),
              sub="volume connu", color="#05AEEF", icon="database")
 with c2:
-    kpi_card(st, "Tâches avec volume", tasks_with_rows,
-             sub="sur " + str(len(df)) + " tâches", color="#151213", icon="layers")
+    kpi_card(st, "DAG max", fmt(top_dag_rows["Total_Rows"]),
+             sub=top_dag_rows["DAG_ID"][:22], color="#22C55E", icon="hash")
 with c3:
     kpi_card(st, "Tâche max", fmt(top_task["Rows_Affected_Total"]),
              sub=top_task["Task_ID"][:22], color="#F0481C", icon="trend")
 with c4:
-    kpi_card(st, "DAG max", fmt(top_dag_rows["Total_Rows"]),
-             sub=top_dag_rows["DAG_ID"][:22], color="#22C55E", icon="hash")
+    kpi_card(st, "Tâches avec volume", tasks_with_rows,
+             sub="sur " + str(len(df)) + " tâches", color="#151213", icon="layers")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -124,17 +124,17 @@ with st.container(border=True):
     has_rows = df[df["Rows_Affected_Total"] > 0].sort_values("Rows_Affected_Total", ascending=False).copy()
     has_rows["Rows_fmt"] = has_rows["Rows_Affected_Total"].apply(lambda n: f"{int(n):,}")
 
-    col_f1, col_f2 = st.columns([3.2, 1])
-    with col_f1:
-        dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
-    with col_f2:
-        label_spacer(st)
-        if dag_filter:
-            display_copy = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
-        else:
-            display_copy = has_rows
-        download_button(st, display_copy[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy(),
-                        title="Toutes les tâches avec volume", key="dl_vol_table")
+    with align_bottom_row(st, key="align-bottom-vol"):
+        col_f1, col_f2 = st.columns([3.2, 1])
+        with col_f1:
+            dag_filter = st.multiselect("Filtrer par DAG", sorted(has_rows["DAG_ID"].unique()))
+        with col_f2:
+            if dag_filter:
+                display_copy = has_rows[has_rows["DAG_ID"].isin(dag_filter)]
+            else:
+                display_copy = has_rows
+            download_button(st, display_copy[["DAG_ID", "Task_ID", "Bash_Script_Name", "Rows_fmt", "State_FR", "Task_Last_Run_Date"]].copy(),
+                            title="Toutes les tâches avec volume", key="dl_vol_table")
 
     if dag_filter:
         has_rows = has_rows[has_rows["DAG_ID"].isin(dag_filter)]

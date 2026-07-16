@@ -5,7 +5,7 @@ from utils.charts import dag_task_composition, success_rate_gauge
 from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, section_title, sidebar_shell, page_header, svg_icon,
-    styled_column, STATE_FR_COLOR, download_button, label_spacer, chart_config,
+    styled_column, STATE_FR_COLOR, download_button, chart_config,
 )
 
 st.set_page_config(page_title="DAG Explorer · Airflow", page_icon="assets/transparent.png", layout="wide")

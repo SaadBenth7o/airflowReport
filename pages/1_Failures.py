@@ -4,7 +4,7 @@ from utils.data_loader import load_data, build_dag_summary, reference_date
 from utils.charts import failures_timeline
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header,
-    download_button, label_spacer, chart_config,
+    download_button, align_bottom_row, chart_config,
 )
 
 st.set_page_config(page_title="Échecs & alertes · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -70,19 +70,19 @@ with st.container(border=True):
         display["Task_Last_Run_Date"] = display["Task_Last_Run_Date"].dt.strftime("%Y-%m-%d  %H:%M").fillna("—")
         display.columns = ["DAG", "Tâche", "Script", "Dernier run", "Durée", "Schedule"]
 
-        col_f1, col_f2 = st.columns([3.2, 1])
-        with col_f1:
-            dag_filter = st.multiselect(
-                "Filtrer par DAG", options=sorted(display["DAG"].unique()),
-                key=f"filter_{key_suffix}",
-            )
-        with col_f2:
-            label_spacer(st)
-            if dag_filter:
-                display_copy = display[display["DAG"].isin(dag_filter)]
-            else:
-                display_copy = display
-            download_button(st, display_copy, title=title_prefix, key=f"dl_{key_suffix}")
+        with align_bottom_row(st, key=f"align-bottom-{key_suffix}"):
+            col_f1, col_f2 = st.columns([3.2, 1])
+            with col_f1:
+                dag_filter = st.multiselect(
+                    "Filtrer par DAG", options=sorted(display["DAG"].unique()),
+                    key=f"filter_{key_suffix}",
+                )
+            with col_f2:
+                if dag_filter:
+                    display_copy = display[display["DAG"].isin(dag_filter)]
+                else:
+                    display_copy = display
+                download_button(st, display_copy, title=title_prefix, key=f"dl_{key_suffix}")
 
         if dag_filter:
             display = display[display["DAG"].isin(dag_filter)]

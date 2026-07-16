@@ -7,7 +7,7 @@ from utils.charts import (
 from utils.cron_fr import describe_cron
 from utils.theme import (
     apply_theme, kpi_card, section_title, sidebar_shell, page_header, donut_legend,
-    download_button, label_spacer, chart_config,
+    download_button, align_bottom_row, chart_config,
 )
 
 st.set_page_config(page_title="Planification · Airflow", page_icon="assets/transparent.png", layout="wide")
@@ -66,14 +66,15 @@ with st.container(border=True):
     # brute reste en derniere colonne pour verification.
     dag_sched["Description"] = dag_sched["Schedule_Cron"].apply(describe_cron)
 
-    col_f1, col_f2, col_f3 = st.columns([1, 2, 1])
-    with col_f1:
-        cat_filter = st.multiselect(
-            "Filtrer par fréquence",
-            options=sorted(dag_sched["Schedule_Category"].unique()),
-        )
-    with col_f2:
-        search_sched = st.text_input("Rechercher un DAG", key="sched_search")
+    with align_bottom_row(st, key="align-bottom-sched"):
+        col_f1, col_f2, col_f3 = st.columns([1, 2, 1])
+        with col_f1:
+            cat_filter = st.multiselect(
+                "Filtrer par fréquence",
+                options=sorted(dag_sched["Schedule_Category"].unique()),
+            )
+        with col_f2:
+            search_sched = st.text_input("Rechercher un DAG", key="sched_search")
 
     if cat_filter:
         dag_sched = dag_sched[dag_sched["Schedule_Category"].isin(cat_filter)]
@@ -90,7 +91,6 @@ with st.container(border=True):
     dag_sched_display["Succès %"] = dag_sched_display["Succès %"].map(lambda v: f"{v:.1f} %")
 
     with col_f3:
-        label_spacer(st)
         download_button(st, dag_sched_display, title="Planning des DAGs", key="dl_schedule_table")
 
     def _lerp(a, b, t):

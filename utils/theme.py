@@ -156,17 +156,14 @@ def _snapshot_str():
     return datetime.now().strftime("%Y-%m-%d_%Hh%M")
 
 
-def label_spacer(st):
-    """Espaceur invisible reprenant exactement le testid/classe du label
-    natif de Streamlit (stWidgetLabel) : sa hauteur suit donc automatiquement
-    la vraie hauteur de label (via le CSS Streamlit lui-meme), plutot qu'une
-    valeur en pixels devinee a la main. Sert a aligner verticalement un
-    bouton place a cote d'un input avec label (text_input, selectbox...)."""
-    st.markdown(
-        '<div data-testid="stWidgetLabel" style="visibility:hidden;">'
-        '<p>&nbsp;</p></div>',
-        unsafe_allow_html=True,
-    )
+def align_bottom_row(st, key):
+    """Conteneur de ligne (filtres + bouton telecharger) dont les colonnes
+    s'alignent sur leur BAS plutot que sur leur haut (comportement par
+    defaut de st.columns). Un bouton sans label colle ainsi exactement
+    au bas d'un input avec label (text_input, multiselect...), quelle
+    que soit la hauteur exacte du label — pas de mesure en pixels a
+    deviner, juste du flexbox standard (align-items: flex-end)."""
+    return st.container(key=key)
 
 
 def download_button(st, dataframe, title="Tableau", key="dl_btn"):
@@ -732,6 +729,16 @@ h2, h3 {{ font-weight:700; letter-spacing:-.01em; color:{CIH['ink']}; }}
    st-key-* posee par st.container(key="slider-red-...") autour du widget. */
 [class*="st-key-slider-red"] [data-testid="stSlider"] {{ filter: hue-rotate(-14deg) saturate(1.15); }}
 [class*="st-key-slider-blue"] [data-testid="stSlider"] {{ filter: hue-rotate(185deg); }}
+
+/* ── alignement bas d'une ligne filtres + bouton telecharger ── */
+/* st.container(key="align-bottom-...") autour d'un st.columns() : les
+   colonnes s'alignent sur leur bas (au lieu du defaut stretch, qui les
+   rend toutes egales en hauteur mais aligne leur CONTENU sur le haut).
+   Un bouton (pas de label) colle ainsi exactement au bas d'un input
+   voisin qui, lui, a un label au-dessus. */
+[class*="st-key-align-bottom"] div[data-testid="stHorizontalBlock"] {{
+    align-items: flex-end;
+}}
 
 /* ── treemap plotly ── */
 /* La tuile racine implicite reste gris fonce (#444) : le plotly.js
